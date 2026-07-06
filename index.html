@@ -4,12 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yingzhi Vilimelis Aceituno · Product Manager</title>
-<meta name="description" content="Product Manager, 12 years, 0 to 1 builder. Ships polished end-to-end products across conversational AI, data science, and interactive storytelling, and prototypes them in code.">
+<meta name="description" content="Data and AI product manager. A showcase of hands-on GitHub projects across conversational AI, applied data science, and interactive storytelling.">
 <meta name="author" content="Yingzhi Vilimelis Aceituno">
-<!-- Open Graph (LinkedIn / social preview) -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="Yingzhi Vilimelis Aceituno · Product Manager">
-<meta property="og:description" content="12 years in product, 0 to 1 builder. Conversational AI, applied data science, and interactive storytelling: shipped, and pleasant to use.">
+<meta property="og:description" content="Data and AI product manager. Hands-on projects across conversational AI, applied data science, and interactive storytelling.">
 <meta property="og:url" content="https://yingzhiva.github.io/">
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234338ca'/><text x='50' y='73' font-size='62' font-family='Georgia,serif' fill='white' text-anchor='middle'>Y</text></svg>">
@@ -98,11 +97,8 @@
   h1{font-size:clamp(2.2rem,5.6vw,3.5rem);line-height:1.05;letter-spacing:-.03em;font-weight:800}
   .role{margin-top:14px;font-size:clamp(1.05rem,2.4vw,1.3rem);color:var(--muted);font-weight:500}
   .role b{color:var(--text);font-weight:600}
-  .lede{margin-top:22px;max-width:600px;font-size:1.08rem;color:var(--muted)}
-  .meta{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px 20px;font-size:14px;color:var(--faint)}
-  .meta span{display:inline-flex;align-items:center;gap:9px}
-  .meta span::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--border-strong)}
-  .cta{margin-top:34px;display:flex;flex-wrap:wrap;gap:12px}
+  .lede{margin-top:22px;max-width:620px;font-size:1.08rem;color:var(--muted)}
+  .cta{margin-top:32px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
   .btn{
     display:inline-flex;align-items:center;gap:9px;
     padding:11px 20px;border-radius:11px;font-size:14.5px;font-weight:600;
@@ -115,12 +111,15 @@
   .btn-primary:hover{transform:translateY(-2px);box-shadow:var(--shadow-hover)}
   .btn-ghost{background:var(--surface);color:var(--text);border-color:var(--border)}
   .btn-ghost:hover{border-color:var(--border-strong);transform:translateY(-2px)}
+  .career{margin-top:18px;font-size:14px;color:var(--faint)}
+  .career a{color:var(--accent);font-weight:600}
+  .career a:hover{text-decoration:underline}
 
   /* Sections */
   section{padding:56px 0;border-top:1px solid var(--border)}
   .eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
   h2{font-size:clamp(1.5rem,3.5vw,2rem);letter-spacing:-.02em;font-weight:700}
-  .section-lede{margin-top:14px;max-width:620px;color:var(--muted);font-size:1.05rem}
+  .section-lede{margin-top:14px;max-width:640px;color:var(--muted);font-size:1.05rem}
 
   /* Domain groups */
   .group{margin-top:40px}
@@ -133,11 +132,9 @@
   .g-story .group-mark{background:var(--story)}
 
   .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-  .card{
-    background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;
     padding:22px;box-shadow:var(--shadow);transition:transform .18s,box-shadow .22s,border-color .2s;
-    display:flex;flex-direction:column;
-  }
+    display:flex;flex-direction:column}
   .card:hover{transform:translateY(-4px);box-shadow:var(--shadow-hover);border-color:var(--border-strong)}
   .card h3{font-size:1.12rem;letter-spacing:-.01em;font-weight:600;margin-bottom:8px}
   .card p{color:var(--muted);font-size:.95rem;flex:1}
@@ -149,15 +146,6 @@
   .links a:hover{gap:8px}
   .links a.sec{color:var(--muted)}
   .links a.sec:hover{color:var(--text)}
-
-  /* Toolbox */
-  .chips{display:flex;flex-wrap:wrap;gap:9px;margin-top:26px}
-  .chip{background:var(--surface);border:1px solid var(--border);border-radius:9px;
-    padding:8px 14px;font-size:13.5px;font-weight:500;color:var(--muted);box-shadow:var(--shadow)}
-  .learn{margin-top:26px;background:var(--surface);border:1px solid var(--border);
-    border-radius:14px;padding:20px 22px;box-shadow:var(--shadow)}
-  .learn b{font-weight:600}
-  .learn div{color:var(--muted);font-size:.95rem;margin-top:4px}
 
   /* Footer */
   footer{border-top:1px solid var(--border);padding:52px 0 64px;text-align:center}
@@ -183,8 +171,7 @@
   <div class="wrap nav-inner">
     <div class="brand">Yingzhi <span>Vilimelis Aceituno</span></div>
     <div class="nav-links">
-      <a href="#work">Work</a>
-      <a href="#toolbox">Toolbox</a>
+      <a href="#work">Projects</a>
       <a href="#contact">Contact</a>
       <button class="theme-btn" id="themeToggle" aria-label="Toggle color theme" title="Toggle theme">◐</button>
     </div>
@@ -195,31 +182,21 @@
   <div class="wrap">
     <div class="status"><span class="dot"></span> Open to new product roles</div>
     <h1>Yingzhi Vilimelis&nbsp;Aceituno</h1>
-    <p class="role"><b>Product Manager</b> · 12 years · <b>0→1 builder</b></p>
-    <p class="lede">I ship polished, end-to-end products across very different domains, and I prototype them in code myself. Framing the problem, doing the analysis, and building the thing, not just writing the spec.</p>
-    <div class="meta">
-      <span>Switzerland</span>
-      <span>Formerly digital wealth management (robo-advisory)</span>
-    </div>
+    <p class="role"><b>Product Manager</b> · Data &amp; AI · <b>0→1 builder</b></p>
+    <p class="lede">Product manager with 12 years of experience and hands-on data practice: I define KPIs, build predictive models myself, and turn raw data into decisions. This page is where I keep the things I build. Hobby and portfolio projects, the kind that don't fit neatly on a CV.</p>
     <div class="cta">
       <a class="btn btn-primary" href="https://www.linkedin.com/in/yingzhi-v-150ab040/" target="_blank" rel="noopener">Connect on LinkedIn →</a>
       <a class="btn btn-ghost" href="https://github.com/YingzhiVA" target="_blank" rel="noopener">GitHub</a>
     </div>
+    <p class="career">Full career history and experience on <a href="https://www.linkedin.com/in/yingzhi-v-150ab040/" target="_blank" rel="noopener">LinkedIn →</a></p>
   </div>
 </header>
 
-<section id="about">
-  <div class="wrap">
-    <div class="eyebrow">About</div>
-    <h2>Range and craft, 0 to 1</h2>
-    <p class="section-lede">The projects below are hobby and portfolio builds, deliberately spread across conversational AI, applied data science, and interactive storytelling on the web. The through-line isn't a single stack: it's taking each one from a blank page to something real, finished, and genuinely pleasant to use.</p>
-  </div>
-</section>
-
 <section id="work">
   <div class="wrap">
-    <div class="eyebrow">Featured Work</div>
-    <h2>Selected projects</h2>
+    <div class="eyebrow">Projects</div>
+    <h2>Things I've built</h2>
+    <p class="section-lede">Deliberately spread across conversational AI, applied data science, and interactive storytelling. The through-line isn't a single stack: it's taking each one from a blank page to something real, finished, and genuinely pleasant to use.</p>
 
     <div class="group g-ai">
       <div class="group-head">
@@ -230,7 +207,7 @@
         <div class="card">
           <h3>Strohsack AI</h3>
           <p>A personality-driven AI agent that embodies a beloved plush bear, with persistent memory across sessions, LLM tool-use for durable facts, and both CLI and Streamlit interfaces.</p>
-          <div class="tags"><span class="tag">Python</span><span class="tag">LLM</span><span class="tag">Streamlit</span><span class="tag">Prompt design</span></div>
+          <div class="tags"><span class="tag">Python</span><span class="tag">LLM</span><span class="tag">RAG</span><span class="tag">Streamlit</span></div>
           <div class="links"><a href="https://github.com/YingzhiVA/strohsack-ai-public" target="_blank" rel="noopener">Code →</a></div>
         </div>
       </div>
@@ -286,38 +263,11 @@
   </div>
 </section>
 
-<section id="toolbox">
-  <div class="wrap">
-    <div class="eyebrow">Toolbox</div>
-    <h2>How I work</h2>
-    <div class="chips">
-      <span class="chip">Product Strategy</span>
-      <span class="chip">Discovery and Analytics</span>
-      <span class="chip">Python</span>
-      <span class="chip">SQL</span>
-      <span class="chip">Pandas</span>
-      <span class="chip">scikit-learn</span>
-      <span class="chip">XGBoost / SHAP</span>
-      <span class="chip">LLMs and prompt design</span>
-      <span class="chip">Streamlit</span>
-      <span class="chip">Data Viz</span>
-    </div>
-    <div class="learn">
-      <b>Mathematics for Machine Learning</b> &middot; Imperial College London
-      <div>The mathematics underlying machine learning and data science: gradient descent, regression modelling, and principal component analysis.</div>
-    </div>
-    <div class="learn">
-      <b>Google Advanced Data Analytics</b>
-      <div>Seven-course professional certificate: statistics, regression, machine learning, and communicating results to decision-makers.</div>
-    </div>
-  </div>
-</section>
-
 <footer id="contact">
   <div class="wrap">
     <div class="eyebrow" style="color:var(--accent)">Contact</div>
     <h2>Let's talk product</h2>
-    <p>Open to new product roles. The fastest way to reach me is LinkedIn.</p>
+    <p>Open to new product roles in data and AI. The fastest way to reach me is LinkedIn.</p>
     <div class="foot-links">
       <a class="btn btn-primary" href="https://www.linkedin.com/in/yingzhi-v-150ab040/" target="_blank" rel="noopener">Connect on LinkedIn →</a>
       <a class="btn btn-ghost" href="https://github.com/YingzhiVA" target="_blank" rel="noopener">GitHub</a>
