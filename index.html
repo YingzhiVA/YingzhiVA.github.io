@@ -155,11 +155,11 @@
   .links a.sec:hover{color:var(--text)}
 
   /* Footer */
-  footer{border-top:1px solid var(--border);padding:52px 0 64px;text-align:center}
-  footer h2{margin-bottom:10px}
-  footer p{color:var(--muted);max-width:460px;margin:0 auto 24px}
-  .foot-links{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-  .copy{margin-top:40px;font-size:13px;color:var(--faint)}
+  footer{border-top:1px solid var(--border);padding:44px 0 52px;text-align:center}
+  .foot-line{color:var(--muted);font-size:1.05rem}
+  .foot-line a{color:var(--accent);font-weight:600}
+  .foot-line a:hover{text-decoration:underline}
+  .copy{margin-top:24px;font-size:13px;color:var(--faint)}
 
   @media (max-width:600px){
     header.hero{padding:60px 0 44px}
@@ -272,13 +272,8 @@
 
 <footer id="contact">
   <div class="wrap">
-    <div class="eyebrow" style="color:var(--accent)">Contact</div>
-    <h2>Let's talk product</h2>
-    <p>Open to new product roles in data and AI. The fastest way to reach me is LinkedIn.</p>
-    <div class="foot-links">
-      <a class="btn btn-primary" href="https://www.linkedin.com/in/yingzhi-v-150ab040/" target="_blank" rel="noopener">Connect on LinkedIn →</a>
-      <a class="btn btn-ghost" href="https://github.com/YingzhiVA" target="_blank" rel="noopener">GitHub</a>
-    </div>
+    <div class="eyebrow">Contact</div>
+    <p class="foot-line">Open to new product roles. Reach me on <a href="https://www.linkedin.com/in/yingzhi-v-150ab040/" target="_blank" rel="noopener">LinkedIn</a> or <a href="https://github.com/YingzhiVA" target="_blank" rel="noopener">GitHub</a>.</p>
     <div class="copy">© <span id="yr"></span> Yingzhi Vilimelis Aceituno</div>
   </div>
 </footer>
