@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Field note No. 04: building synthetic test profiles by breaking a client's situation into complexity vectors, and growing the test set one dimension at a time.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="article">
+<meta property="og:title" content="One Axis at a Time">
+<meta property="og:description" content="Field note No. 04: building synthetic test profiles by breaking a client's situation into complexity vectors, and growing the test set one dimension at a time.">
+<meta name="twitter:card" content="summary_large_image">
+<style>html{-webkit-text-size-adjust:100%}img,canvas{max-width:100%}</style>
+<title>One Axis at a Time</title>
+
+<style>
+  :root {
+    --ground: #eef1f2;
+    --surface: #f9fbfb;
+    --surface-2: #e7ecee;
+    --ink: #16232d;
+    --muted: #566571;
+    --faint: #8695a0;
+    --hairline: #d3dbdf;
+    --accent: #0c7c88;      /* instrument teal */
+    --accent-ink: #095e67;
+    --stable: #2f8f63;      /* easy end / comfortable */
+    --drift: #bd7714;       /* hard end / edge */
+    --stable-wash: rgba(47,143,99,.12);
+    --drift-wash: rgba(189,119,20,.13);
+
+    --serif: "Charter", "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+    --fs-eyebrow: .72rem;
+    --fs-body: 1.08rem;
+    --fs-small: .92rem;
+    --fs-h3: 1.32rem;
+    --fs-h2: clamp(1.55rem, 1.15rem + 1.7vw, 2.15rem);
+    --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
+    --fs-title: clamp(2.5rem, 1.5rem + 4.6vw, 4.4rem);
+
+    --col: 40rem;
+    --wide: 58rem;
+    --radius: 4px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0c141a;
+      --surface: #121d25;
+      --surface-2: #16232c;
+      --ink: #dbe4e9;
+      --muted: #8598a4;
+      --faint: #61727e;
+      --hairline: #26343d;
+      --accent: #35b2bd;
+      --accent-ink: #6fd3dc;
+      --stable: #52bd88;
+      --drift: #d79a41;
+      --stable-wash: rgba(82,189,136,.14);
+      --drift-wash: rgba(215,154,65,.15);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f2; --surface: #f9fbfb; --surface-2: #e7ecee;
+    --ink: #16232d; --muted: #566571; --faint: #8695a0; --hairline: #d3dbdf;
+    --accent: #0c7c88; --accent-ink: #095e67; --stable: #2f8f63; --drift: #bd7714;
+    --stable-wash: rgba(47,143,99,.12); --drift-wash: rgba(189,119,20,.13);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0c141a; --surface: #121d25; --surface-2: #16232c;
+    --ink: #dbe4e9; --muted: #8598a4; --faint: #61727e; --hairline: #26343d;
+    --accent: #35b2bd; --accent-ink: #6fd3dc; --stable: #52bd88; --drift: #d79a41;
+    --stable-wash: rgba(82,189,136,.14); --drift-wash: rgba(215,154,65,.15);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--fs-body);
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .col { max-width: var(--col); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+  .wide { max-width: var(--wide); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--fs-eyebrow);
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    border-bottom: 1px solid var(--hairline);
+    padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 4vw, 2.75rem);
+    background:
+      radial-gradient(120% 80% at 92% -10%, var(--drift-wash), transparent 60%),
+      radial-gradient(90% 70% at 0% 0%, var(--stable-wash), transparent 55%);
+  }
+  .hero .kicker { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.5rem; }
+  .hero .kicker .rule { height: 1px; flex: 1; background: var(--hairline); }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: var(--fs-title);
+    line-height: 1.02;
+    letter-spacing: -.028em;
+    margin: 0 0 .7rem;
+    text-wrap: balance;
+  }
+  .dek {
+    font-size: var(--fs-dek);
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0 0 1.9rem;
+    max-width: 35rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.1rem;
+  }
+
+  figure.space {
+    position: relative;
+    margin: clamp(1.75rem, 4vw, 2.75rem) 0 0;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  figure.space .plot { position: relative; }
+  figure.space canvas { display: block; width: 100%; height: 220px; }
+  figure.space .tags {
+    position: absolute; inset: 0; pointer-events: none;
+    font-family: var(--mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase;
+  }
+  figure.space .tag { position: absolute; left: .7rem; padding: .25rem .3rem; }
+  figure.space .tag--hard { top: .5rem; color: var(--drift); }
+  figure.space .tag--easy { bottom: .5rem; color: var(--stable); }
+  figure.space figcaption {
+    border-top: 1px solid var(--hairline);
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .02em;
+    color: var(--muted);
+    padding: .7rem 1rem;
+    background: var(--surface-2);
+  }
+
+  /* ---------- prose ---------- */
+  main { padding-block: clamp(2.5rem, 6vw, 4rem); }
+  section { padding-block: clamp(1.5rem, 4vw, 2.5rem); }
+  .snum {
+    font-family: var(--mono);
+    font-size: var(--fs-eyebrow);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: block;
+    margin-bottom: .55rem;
+  }
+  h2 {
+    font-family: var(--sans);
+    font-weight: 750;
+    font-size: var(--fs-h2);
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    margin: 0 0 1rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: var(--fs-h3);
+    letter-spacing: -.01em;
+    margin: 2rem 0 .6rem;
+  }
+  p { margin: 0 0 1.15rem; }
+  .lead { font-size: 1.16rem; color: var(--ink); }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  em.term { font-style: normal; font-family: var(--mono); font-size: .9em; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 9%, transparent); padding: .05em .35em; border-radius: 3px; }
+
+  .drop::first-letter {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 3.3em;
+    line-height: .82;
+    float: left;
+    padding: .04em .12em 0 0;
+    color: var(--accent);
+  }
+
+  blockquote {
+    margin: 2.2rem 0;
+    padding-left: 1.15rem;
+    border-left: 3px solid var(--accent);
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: clamp(1.25rem, 1.05rem + 1vw, 1.6rem);
+    line-height: 1.3;
+    letter-spacing: -.015em;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+
+  /* ---------- vectors table ---------- */
+  .band { background: var(--surface-2); border-block: 1px solid var(--hairline); padding-block: clamp(2rem, 5vw, 3.25rem); }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 40rem; }
+  thead th { text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: .85rem 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2); }
+  tbody td { padding: .9rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.4; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody td:first-child { font-weight: 650; color: var(--ink); font-family: var(--serif); }
+  td.easy { color: var(--stable); }
+  td.hard { color: var(--drift); }
+  caption { caption-side: bottom; text-align: left; font-size: .82rem; color: var(--muted); padding-top: .75rem; font-family: var(--sans); }
+  .band .cap { font-family: var(--mono); font-size: .74rem; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; margin: 0 0 1.25rem; }
+
+  /* ---------- takeaways ---------- */
+  .takes { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; counter-reset: t; }
+  .takes li { background: var(--surface); padding: 1.3rem 1.4rem 1.4rem; display: grid; grid-template-columns: 2.4rem 1fr; gap: .4rem 1rem; align-items: start; counter-increment: t; }
+  .takes li::before { content: counter(t, decimal-leading-zero); font-family: var(--mono); font-size: .8rem; font-weight: 600; color: var(--accent); padding-top: .28rem; letter-spacing: .05em; }
+  .takes h4 { font-family: var(--sans); font-size: 1.06rem; font-weight: 700; letter-spacing: -.01em; margin: .12rem 0 .3rem; color: var(--ink); }
+  .takes p { font-size: var(--fs-small); color: var(--muted); margin: 0; line-height: 1.5; }
+  .takes .body { grid-column: 2; }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--hairline); padding-block: 2.5rem 3.5rem; color: var(--muted); }
+  footer p { font-size: var(--fs-small); margin: 0 0 .6rem; }
+  footer .sig { font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+  hr.tick { border: 0; height: 1px; background: var(--hairline); margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+</style>
+<script src="../../../assets/site.js"></script>
+</head>
+<body>
+<div style="border-bottom:1px solid var(--hairline);"><div style="max-width:var(--wide,58rem);margin-inline:auto;padding:.7rem clamp(1.25rem,5vw,2rem);font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;display:flex;justify-content:space-between;gap:1rem;"><a href="../" style="color:var(--muted);text-decoration:none;">&larr; The series</a><a href="../../../" style="color:var(--muted);text-decoration:none;">yingzhiva.github.io</a></div></div>
+<header class="hero">
+  <div class="wide">
+    <div class="kicker">
+      <span class="eyebrow">Field Notes &middot; No. 04 &middot; Test Data</span>
+      <span class="rule"></span>
+    </div>
+    <h1>One Axis at a Time</h1>
+    <p class="dek">Real clients were too scarce and too sensitive to test with, so I manufactured them &mdash; by breaking &ldquo;a complicated situation&rdquo; into complexity vectors and growing the test set one dimension at a time.</p>
+    <div class="meta">
+      <span>Field note</span>
+      <span>&middot;</span>
+      <span>~8 min read</span>
+      <span>&middot;</span>
+      <span>Details generalized</span>
+    </div>
+
+    <figure class="space" aria-label="A parallel-coordinates plot: several vertical axes, each running from easy-to-model at the bottom to hard-to-model at the top. A profile line grows outward one axis at a time from a common starting point.">
+      <div class="plot">
+        <canvas id="vectors" width="1160" height="440"></canvas>
+        <div class="tags">
+          <span class="tag tag--hard">hard to model</span>
+          <span class="tag tag--easy">easy to model</span>
+        </div>
+      </div>
+      <figcaption>Each axis is one dimension of difficulty; the line is a single synthetic profile. It starts at the common case and advances one axis per step.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+
+    <section>
+      <p class="lead drop">You can't test a pipeline you can't feed. Real client situations were scarce, sensitive, and inconveniently shaped, so before I could measure whether the agents were stable I needed a way to manufacture clients &mdash; synthetic profiles, plausible enough to exercise the workflow and controlled enough to reason about. The naive version, "generate a random client," fails twice over: it hands you either a toy nobody resembles, or a tangle so knotted that when the agent stumbles you can't say what tripped it.</p>
+      <p>What I wanted was the opposite of random: inputs I could dial deliberately, so that every failure pointed back at a cause. That meant giving "complicated" a structure.</p>
+    </section>
+
+    <hr class="tick" />
+
+    <section>
+      <span class="snum">01 &middot; The idea</span>
+      <h2>Complexity isn't a scalar. It's a set of axes.</h2>
+      <p>The move that unlocked everything was refusing to treat difficulty as a single number. A client's situation isn't just "hard" &mdash; it's hard in <em>particular ways</em>, and those ways are largely independent of one another. So I broke the situation into a set of <strong>complexity vectors</strong>: dimensions, each its own spectrum running from easy-to-model at one end to hard-to-model at the other. A synthetic profile is then just a point in that space &mdash; one level chosen on every axis.</p>
+
+      <div class="tbl-wrap" role="region" aria-label="Example complexity vectors, easy end to hard end">
+        <table>
+          <caption>A handful of the axes. Each is a spectrum, not a switch &mdash; a profile picks a level on every one.</caption>
+          <thead>
+            <tr><th scope="col">Complexity vector</th><th scope="col">Easy-to-model end</th><th scope="col">Hard-to-model end</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Household</td><td class="easy">one person, one timeline</td><td class="hard">multiple parties, dependents, staggered timelines</td></tr>
+            <tr><td>Assets</td><td class="easy">a single simple holding</td><td class="hard">many account types across coarse and fine categories</td></tr>
+            <tr><td>Timeline</td><td class="easy">one event on one date</td><td class="hard">several staggered events over many years</td></tr>
+            <tr><td>Tax exposure</td><td class="easy">one common regime</td><td class="hard">multiple interacting regimes and edge rules</td></tr>
+            <tr><td>Obligations</td><td class="easy">none</td><td class="hard">several time-bounded or conditional commitments</td></tr>
+            <tr><td>Input completeness</td><td class="easy">every figure supplied</td><td class="hard">costs named but left unquantified</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <blockquote>"Hard" isn't a number. It's a set of coordinates.</blockquote>
+    </section>
+
+    <section>
+      <span class="snum">02 &middot; Why a vector beats a dial</span>
+      <h2>Localized difficulty means localized blame</h2>
+      <p>A one-to-five difficulty dial would have been easier to build and useless to debug. When a case rated "hard" fails, the rating tells you nothing about <em>why</em>. A vector does: it says this profile is level-three on assets and near the floor on everything else &mdash; so if it breaks, assets is your first and only suspect. The structure I put into the input is exactly the structure I get back in the diagnosis.</p>
+      <p>This is the same instinct as the harness note, pushed one step upstream into the test data itself: localize the blame by construction. The harness localizes a failure to a single stage; graded inputs localize it to a single dimension &mdash; one hard axis kept from hiding inside a vague "complex case." Design the inputs so the outputs can only point one way.</p>
+    </section>
+
+    <section>
+      <span class="snum">03 &middot; Where to start</span>
+      <h2>The common case, not the easy case</h2>
+      <p>The temptation is to begin at the origin &mdash; every axis at its minimum. I didn't. An all-easy profile is a strawman: no real client is that tidy, and stabilizing on it would teach me nothing about the distribution I'd actually serve. So I anchored at the <strong>most common</strong> vector instead &mdash; the typical client &mdash; which is emphatically <em>not</em> the easiest on every axis. Most people carry real complexity somewhere; the common case already sits a notch or two up several dimensions.</p>
+      <blockquote>Start where your clients actually are, not where the model is most comfortable.</blockquote>
+      <p>That choice matters more than it looks. The first profile you stabilize becomes the trunk everything else grows from. Root it in a fiction and every branch inherits the fiction; root it in the modal client and every expansion is a step into territory you'll genuinely have to serve.</p>
+    </section>
+
+    <section>
+      <span class="snum">04 &middot; The growth rule</span>
+      <h2>Advance one axis at a time, behind a regression gate</h2>
+      <p>From that anchor the plan was a curriculum, not a data dump. First, get the agents <strong>stable</strong> on the common profile &mdash; stable in the sense the eval that closes this series measures: the recommendation reproduces run to run. Only then grow the complexity, and only in <strong>one dimension &mdash; two at the very most</strong> &mdash; per step. Re-run the whole suite, check for regression, and move outward only once it's green again.</p>
+      <p>The size of the step is the entire discipline. Advance three axes at once and something breaks, and you're back to guessing which of the three did it &mdash; you've re-created the very ambiguity the vectors were built to kill. Move one, and a failure names its own cause.</p>
+      <blockquote>Move one axis, and a failure names its own cause.</blockquote>
+      <p>The regression gate is what makes the ground permanent. Every profile already passing stays in the suite forever, so each expansion has to earn its place <em>without</em> costing the ones behind it. Capability only ratchets forward. What you get is a difficulty curriculum where the agents are made incrementally more capable &mdash; each step a little harder, none of them a leap.</p>
+    </section>
+
+    <section>
+      <span class="snum">05 &middot; What the test set becomes</span>
+      <h2>A map, not a pile</h2>
+      <p>Run this for a while and the test set stops being a heap of cases and becomes a <strong>map</strong>: a lattice of covered profiles with a visible frontier &mdash; the edge of what the agents can reliably handle. Growth is deliberate and legible. You can point at the boundary and say, precisely, "we're solid two levels up on assets and timeline, one level up on tax, and we haven't touched multi-party households yet." Coverage stops being a box you check and becomes a frontier you push.</p>
+      <p>And the hardest end of one axis &mdash; a profile that names a cost but never a figure &mdash; is exactly the kind of genuinely missing input that pinning can't fix: the open problem the eval closing this series runs headlong into. Putting it on an axis was how I turned "we don't handle that yet" from a surprise into a coordinate: a known point beyond the current frontier, waiting its turn, not a landmine.</p>
+    </section>
+
+  </div>
+
+  <div class="band">
+    <div class="col" style="padding-top:0;padding-bottom:0;">
+      <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
+      <h2 style="margin-bottom:1.6rem;">What I'd bring to the next test set</h2>
+    </div>
+    <div class="wide">
+      <ol class="takes">
+        <li><div class="body"><h4>Model difficulty as a vector, not a scalar</h4><p>Break "complex" into independent dimensions, each a spectrum from easy to hard. A single number can't be debugged.</p></div></li>
+        <li><div class="body"><h4>Make failures localizable by construction</h4><p>If a case moved on only one axis, the culprit is obvious. Put the structure into the input and you get it back in the diagnosis.</p></div></li>
+        <li><div class="body"><h4>Start at the common case, not the easy case</h4><p>The all-minimum profile is a fiction nobody resembles. Anchor on the modal client &mdash; complexity and all &mdash; so every branch grows from reality.</p></div></li>
+        <li><div class="body"><h4>Grow one axis at a time &mdash; two at most</h4><p>Small steps keep attribution clean. A big jump that breaks leaves you guessing which new dimension did it.</p></div></li>
+        <li><div class="body"><h4>Gate every step on regression</h4><p>Keep every passing profile in the suite forever. Capability should ratchet: each expansion earns its place without costing the ground behind it.</p></div></li>
+        <li><div class="body"><h4>Stability is the prerequisite for growth</h4><p>You can only expand from a base that reproduces. Get one profile stable before you make it harder &mdash; the curriculum rests on it.</p></div></li>
+        <li><div class="body"><h4>Synthetic data should be parameterized, not random</h4><p>Dial the inputs deliberately. Legible inputs are what make failures legible; randomness just hides the cause.</p></div></li>
+        <li><div class="body"><h4>Put "not yet" on an axis</h4><p>An unsupported case at the hard end of a known dimension is a plan, not a gap &mdash; a coordinate beyond the frontier, waiting its turn.</p></div></li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>
+    <div class="col">
+      <p>The satisfaction is the one that runs through this whole series: taking something everyone waves at as "it's complicated" and giving it axes and coordinates. Once a hard case has an address, you can walk toward it one step at a time &mdash; and know, each morning, exactly how far you've come and precisely what's next.</p>
+      <p class="sig">Field notes &middot; No. 04 &middot; built pair-programming with Claude Code &middot; details generalized</p>
+    </div>
+  </footer>
+</main>
+
+<script>
+  (function () {
+    var canvas = document.getElementById("vectors");
+    if (!canvas || !canvas.getContext) return;
+    var ctx = canvas.getContext("2d");
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    var MAXL = 4;
+    var baseline = [1, 1, 0, 1, 0, 0];  // the common case: not all-zero
+    var target   = [2, 3, 1, 2, 1, 1];  // grown a step or two on several axes
+    var order = [];
+    for (var i = 0; i < baseline.length; i++) if (target[i] !== baseline[i]) order.push(i);
+    var MOVE = 560, HOLD = 320;
+
+    function tokens() {
+      var s = getComputedStyle(document.documentElement);
+      return {
+        accent: s.getPropertyValue("--accent").trim() || "#0c7c88",
+        stable: s.getPropertyValue("--stable").trim() || "#2f8f63",
+        drift:  s.getPropertyValue("--drift").trim()  || "#bd7714",
+        grid:   s.getPropertyValue("--hairline").trim() || "#d3dbdf",
+        muted:  s.getPropertyValue("--muted").trim()  || "#566571",
+        surface:s.getPropertyValue("--surface").trim()|| "#f9fbfb"
+      };
+    }
+
+    var W = 0, H = 220, dpr = 1, padT = 26, padB = 30, padX = 34;
+    function resize() {
+      var rect = canvas.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = Math.max(320, rect.width);
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function axisX(i) { return padX + i * (W - 2 * padX) / (baseline.length - 1); }
+    function yFor(lvl) { var yTop = padT, yBot = H - padB; return yBot - (lvl / MAXL) * (yBot - yTop); }
+
+    // current profile levels + which axis is mid-move, given elapsed ms
+    function state(elapsed) {
+      var cur = baseline.slice(), active = -1;
+      for (var k = 0; k < order.length; k++) {
+        var start = k * (MOVE + HOLD), ax = order[k];
+        if (elapsed >= start + MOVE) { cur[ax] = target[ax]; }
+        else if (elapsed >= start) {
+          var t = (elapsed - start) / MOVE, e = t < .5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+          cur[ax] = baseline[ax] + (target[ax] - baseline[ax]) * e;
+          active = ax; break;
+        } else break;
+      }
+      return { cur: cur, active: active };
+    }
+    var TOTAL = order.length * (MOVE + HOLD) + 400;
+
+    function draw(elapsed) {
+      var c = tokens(), st = state(elapsed);
+      ctx.clearRect(0, 0, W, H);
+
+      // faint level gridlines
+      ctx.strokeStyle = c.grid; ctx.lineWidth = 1;
+      for (var l = 0; l <= MAXL; l++) {
+        ctx.globalAlpha = l === 0 ? 0.7 : 0.32;
+        var y = Math.round(yFor(l)) + .5;
+        ctx.beginPath(); ctx.moveTo(padX, y); ctx.lineTo(W - padX, y); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // each axis: easy->hard gradient rail + ticks
+      for (var i = 0; i < baseline.length; i++) {
+        var x = Math.round(axisX(i)) + .5;
+        var g = ctx.createLinearGradient(0, yFor(0), 0, yFor(MAXL));
+        g.addColorStop(0, c.stable); g.addColorStop(1, c.drift);
+        ctx.strokeStyle = g; ctx.globalAlpha = 0.5; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(x, yFor(0)); ctx.lineTo(x, yFor(MAXL)); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      // ghost baseline profile (the common anchor)
+      ctx.strokeStyle = c.muted; ctx.globalAlpha = 0.4; ctx.lineWidth = 1.5; ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      for (var b = 0; b < baseline.length; b++) { var bx = axisX(b), by = yFor(baseline[b]); b ? ctx.lineTo(bx, by) : ctx.moveTo(bx, by); }
+      ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+      // current profile line
+      ctx.strokeStyle = c.accent; ctx.lineWidth = 2.4; ctx.lineJoin = "round";
+      ctx.beginPath();
+      for (var p = 0; p < st.cur.length; p++) { var px = axisX(p), py = yFor(st.cur[p]); p ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.stroke();
+
+      // points
+      for (var q = 0; q < st.cur.length; q++) {
+        var qx = axisX(q), qy = yFor(st.cur[q]), on = q === st.active;
+        if (on) { ctx.beginPath(); ctx.fillStyle = c.drift; ctx.globalAlpha = 0.2; ctx.arc(qx, qy, 9, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+        ctx.beginPath(); ctx.fillStyle = on ? c.drift : c.accent; ctx.arc(qx, qy, on ? 4.2 : 3.4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.fillStyle = c.surface; ctx.arc(qx, qy, on ? 1.7 : 1.4, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    var start = null;
+    function frame(ts) {
+      if (start === null) start = ts;
+      var e = ts - start;
+      draw(e);
+      if (e < TOTAL) requestAnimationFrame(frame);
+      else draw(TOTAL);
+    }
+    function run() { resize(); if (reduce) draw(TOTAL); else { start = null; requestAnimationFrame(frame); } }
+    run();
+
+    var rt;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(run, 180); });
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", function () { draw(TOTAL); });
+    new MutationObserver(function () { draw(TOTAL); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  })();
+</script>
+</body>
+</html>
