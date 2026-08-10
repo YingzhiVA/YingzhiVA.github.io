@@ -41,8 +41,9 @@
     --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
     --fs-title: clamp(2.5rem, 1.5rem + 4.6vw, 4.4rem);
 
-    --col: 40rem;
-    --wide: 58rem;
+    /* one measure: hero, prose, figures and tables share the same two edges */
+    --col: 46rem;
+    --wide: var(--col);
     --radius: 4px;
   }
 
@@ -140,7 +141,7 @@
 
   .scope {
     position: relative;
-    margin-top: clamp(1.75rem, 4vw, 2.75rem);
+    margin: clamp(1.75rem, 4vw, 2.75rem) 0 0;  /* kill the UA figure margin so it lines up with the title */
     border: 1px solid var(--hairline);
     border-radius: var(--radius);
     background: var(--surface);
@@ -221,9 +222,11 @@
   .band { background: var(--surface-2); border-block: 1px solid var(--hairline); padding-block: clamp(2rem, 5vw, 3.25rem); }
   .readouts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; }
   @media (max-width: 34rem) { .readouts { grid-template-columns: 1fr; } }
-  .readout { background: var(--surface); padding: 1.25rem 1.35rem 1.4rem; }
+  /* flex column + auto top margin pins the values to the bottom of the equal-height
+     cells, so they share a baseline even when a label wraps to two lines */
+  .readout { background: var(--surface); padding: 1.25rem 1.35rem 1.4rem; display: flex; flex-direction: column; }
   .readout .lbl { font-family: var(--mono); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-  .readout .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 1.9rem; font-weight: 600; letter-spacing: -.01em; margin-top: .5rem; display: flex; align-items: baseline; gap: .4rem; }
+  .readout .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 1.9rem; font-weight: 600; letter-spacing: -.01em; margin-top: auto; padding-top: .5rem; display: flex; align-items: baseline; gap: .4rem; }
   .readout .from { color: var(--drift); }
   .readout .arrow { color: var(--faint); font-size: 1.1rem; }
   .readout .to { color: var(--stable); }
@@ -235,13 +238,31 @@
 
   /* ---------- ledger table ---------- */
   .ledger-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius); }
-  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 42rem; }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 30rem; table-layout: fixed; }
+  th:first-child, td:first-child { width: 28%; }
+  th:last-child, td:last-child { width: 33%; }
   thead th { text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: .85rem 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2); }
-  tbody td { padding: 1rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.45; }
+  tbody td { padding: 1rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.45; overflow-wrap: break-word; }
   tbody tr:last-child td { border-bottom: 0; }
   tbody td:first-child { font-weight: 650; color: var(--ink); }
   td .pin { color: var(--stable); font-weight: 650; }
   caption { caption-side: bottom; text-align: left; font-size: .82rem; color: var(--muted); padding-top: .75rem; font-family: var(--sans); }
+
+  /* narrow screens: stack each row into a labelled block instead of scrolling sideways */
+  @media (max-width: 34rem) {
+    .ledger-wrap { overflow-x: visible; }
+    tbody, tr, td, caption { display: block; }
+    table { min-width: 0; display: flex; flex-direction: column; }  /* flex so the caption can stay last */
+    tbody { order: 1; }
+    caption { order: 2; }
+    thead { display: none; }
+    th, td { width: auto !important; }
+    tbody tr { border-bottom: 1px solid var(--hairline); padding: .55rem 0; }
+    tbody tr:last-child { border-bottom: 0; }
+    tbody td { border-bottom: 0; padding: .45rem 1.1rem; }
+    tbody td::before { content: attr(data-label); display: block; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: .15rem; }
+    caption { padding: .75rem 1.1rem 0; }
+  }
 
   /* ---------- takeaways ---------- */
   .takes { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; counter-reset: t; }
@@ -298,7 +319,7 @@
     <section>
       <p class="lead drop">A pipeline of language-model agents had been built to turn a conversation with a client and their submitted documents into a recommended plan. Five stages, hand-offs between them, a good seventeen minutes end to end. I was amazed by the output: a polished report with sound reasoning, an action plan, and a detailed analysis to support the main conclusions. But it had a quiet problem: run it twice on the same input and it could hand back two different recommendations.</p>
       <p>Nothing had crashed and it turned out that the agents had not lied either. The pipeline was simply <em>improvising</em> in the places the specification left open, and doing it differently each time. This is the story of how I made that visible, then made it stop. The domain doesn't matter; the shape of the problem could be familiar in every agent system.</p>
-      <p>This is the last note in the series for a reason: the eval leans on everything the earlier ones built &mdash; the inspectable, deterministic harness, the single-sourced facts, and the graded test profiles it runs against. With those in place, measuring stability became possible; without them, it would have been guesswork.</p>
+      <p>This is the last note in the series for a reason: the eval leans on everything the earlier ones built: the inspectable, deterministic harness, the single-sourced facts, and the graded test profiles it runs against. With those in place, measuring stability became possible; without them, it would have been guesswork.</p>
     </section>
 
     <hr class="tick" />
@@ -330,51 +351,55 @@
     <section>
       <span class="snum">04 &middot; Not crying wolf</span>
       <h2>One root cause, one failure</h2>
-      <p>An early trap: when a single decision flips, every number downstream of it moves too. Report each of those as its own failure and one root cause becomes fifteen red cells &mdash; a dashboard that cries wolf until nobody reads it. So the ruler <strong>attributes</strong>: when a decision flips, the numbers that mechanically follow it are annotated and not counted again. The high-signal event &mdash; the one you actually chase &mdash; is a deterministic number that moved <em>while its governing decision held still</em>. Given the seeded core, that can only mean the math changed.</p>
-      <p>The other half of not crying wolf was measuring the <strong>margin</strong>. A recommendation chosen from a field of near-identical options is a coin toss; one chosen over a clear runner-up is a real verdict. So I recorded how close the race was. A flip within a dead heat is expected and shrugged off. A flip away from a clear winner is an alarm. Same event, opposite meaning &mdash; and only the margin tells them apart.</p>
+      <p>Early on, when a single decision flips, every number downstream of it moves too. Report each of those as its own failure due to one root cause becomes fifteen red cells. So the ruler <strong>attributes</strong>: when a decision flips, the numbers that mechanically follow it are annotated and not counted again. The high-signal event, i.e., the one you actually chase, is a deterministic number that moved <em>while its governing decision held still</em>. Given the seeded core, that can only mean the math changed.</p>
+      <p>The other half of not crying wolf was measuring the <strong>margin</strong>. A recommendation chosen from a field of near-identical options is a coin toss; one chosen over a clear runner-up is a real verdict. So I recorded how close the race was. A flip within a dead heat is expected and shrugged off. A flip away from a clear winner is an alarm.</p>
     </section>
 
-    <div class="band">
-      <div class="wide">
-        <p class="cap">First scheduled run &rarr; latest, same suite</p>
-        <div class="readouts">
-          <div class="readout">
-            <div class="lbl">Decision stability</div>
-            <div class="val"><span class="from">40%</span><span class="arrow">&rarr;</span><span class="to">100%</span></div>
-          </div>
-          <div class="readout">
-            <div class="lbl">Cases holding their call</div>
-            <div class="val"><span class="from">2/5</span><span class="arrow">&rarr;</span><span class="to">5/5</span></div>
-          </div>
-          <div class="readout">
-            <div class="lbl">Unexplained drifts</div>
-            <div class="val"><span class="from">many</span><span class="arrow">&rarr;</span><span class="to">0</span></div>
-          </div>
+  </div><!-- /col -->
+
+  <div class="band">
+    <div class="col">
+      <p class="cap">First scheduled run &rarr; latest, same suite</p>
+      <div class="readouts">
+        <div class="readout">
+          <div class="lbl">Decision stability</div>
+          <div class="val"><span class="from">40%</span><span class="arrow">&rarr;</span><span class="to">100%</span></div>
         </div>
-        <p style="font-family:var(--mono);font-size:.76rem;color:var(--muted);margin:1.1rem 0 0;letter-spacing:.03em;">
-          suite verdict &nbsp;<span class="pill pill--fail">Fail</span>&nbsp; &rarr; &nbsp;<span class="pill pill--pass">Pass</span>
-        </p>
+        <div class="readout">
+          <div class="lbl">Cases holding their call</div>
+          <div class="val"><span class="from">2/5</span><span class="arrow">&rarr;</span><span class="to">5/5</span></div>
+        </div>
+        <div class="readout">
+          <div class="lbl">Unexplained drifts</div>
+          <div class="val"><span class="from">many</span><span class="arrow">&rarr;</span><span class="to">0</span></div>
+        </div>
       </div>
+      <p style="font-family:var(--mono);font-size:.76rem;color:var(--muted);margin:1.1rem 0 0;letter-spacing:.03em;">
+        suite verdict &nbsp;<span class="pill pill--fail">Fail</span>&nbsp; &rarr; &nbsp;<span class="pill pill--pass">Pass</span>
+      </p>
     </div>
+  </div>
+
+  <div class="col">
 
     <section>
       <span class="snum">05 &middot; First light</span>
       <h2>The first run came back red</h2>
-      <p>Three of five test profiles drifted on the recommendation itself. Good. A green first run mostly means the eval isn't looking hard enough. The point of building the instrument was to see something, and it saw plenty. The question became: <em>why</em>.</p>
+      <p>Three of five test profiles drifted on the recommendation itself. A green first run mostly means the eval isn't looking hard enough. The point of building the instrument was to see something, and it saw plenty. The question became: <em>why</em>.</p>
     </section>
 
     <section>
       <span class="snum">06 &middot; Calibration</span>
       <h2>From "it drifts" to a coordinate</h2>
-      <p>"It's flaky" is not a bug report. To turn it into one I ran each profile <strong>K times in a fixed state</strong> and aggregated the values instead of the pass/fail: for each decision, its <em>mode-share</em> (how often the most common answer won); for each number, its coefficient of variation. Suddenly the vague complaint had coordinates. A decision at 71% mode-share isn't "sometimes wrong" &mdash; it's a specific fork taken two runs in seven, with a specific pair of numbers on either side of it. Calibration is the microscope you point at whatever the eval flags.</p>
+      <p>"It's flaky" is not a bug report. To turn it into one I ran each profile <strong>K times in a fixed state</strong> and aggregated the values instead of the pass/fail: for each decision, its <em>mode-share</em> (how often the most common answer won); for each number, its coefficient of variation. Suddenly the vague complaint had coordinates. A decision at 71% mode-share is a specific fork taken two runs out of seven, with a specific pair of numbers on either side of it. Calibration is the microscope you point at whatever the eval flags.</p>
     </section>
 
     <section>
       <span class="snum">07 &middot; The pattern</span>
       <h2>Almost all of it was unpinned degrees of freedom</h2>
-      <p>Every root cause I chased turned out to be the same species: a spot where the agent had latitude the specification never nailed down, so independent runs resolved it independently. Not a dumb model &mdash; a <em>faithful</em> one, filling a gap I'd left.</p>
+      <p>Every root cause I chased turned out to be the same species: a spot where the agent had latitude the specification never nailed down, so independent runs resolved it independently.</p>
 
-      <blockquote>The agent wasn't unreliable. I'd underspecified it, and the agent was improvising in the gaps I left &mdash; faithfully, and differently, every time.</blockquote>
+      <blockquote>The agent wasn't unreliable. I'd underspecified it, and the agent was improvising in the gaps I left, faithfully, and differently every time.</blockquote>
 
       <div class="ledger-wrap" role="region" aria-label="Three root causes and their fixes">
         <table>
@@ -388,19 +413,19 @@
           </thead>
           <tbody>
             <tr>
-              <td>When to execute a one-off action</td>
-              <td>The same plan booked the action in different years across runs; an early-vs-late choice swung every downstream projection.</td>
-              <td><span class="pin">Default the timing by rule</span> and surface it as a first-class field, so it's chosen once, on purpose.</td>
+              <td data-label="The opening">When to execute a one-off action</td>
+              <td data-label="How it showed up">The same plan booked the action in different years across runs; an early-vs-late choice swung every downstream projection.</td>
+              <td data-label="The pin"><span class="pin">Default the timing by rule</span> and surface it as a first-class field, so it's chosen once, on purpose.</td>
             </tr>
             <tr>
-              <td>Which option to recommend when several tie</td>
-              <td>Among near-equal options the pick wandered run to run &mdash; and sometimes contradicted the client's own stated priority.</td>
-              <td><span class="pin">An explicit, ordered tie-break:</span> stated objective, then downside protection, then expected value.</td>
+              <td data-label="The opening">Which option to recommend when several tie</td>
+              <td data-label="How it showed up">Among near-equal options the pick wandered run to run and sometimes contradicted the client's own stated priority.</td>
+              <td data-label="The pin"><span class="pin">An explicit, ordered tie-break:</span> stated objective, then downside protection, then expected value.</td>
             </tr>
             <tr>
-              <td>How a coarse category maps to a fine-grained table</td>
-              <td>One input bucket resolved to different reference rows across runs, quietly shifting a core assumption and the headline number with it.</td>
-              <td><span class="pin">A pinned lookup;</span> anything unmapped raises an error instead of guessing a plausible row.</td>
+              <td data-label="The opening">How a coarse category maps to a fine-grained table</td>
+              <td data-label="How it showed up">One input bucket resolved to different reference rows across runs, quietly shifting a core assumption and the headline number with it.</td>
+              <td data-label="The pin"><span class="pin">A pinned lookup;</span> anything unmapped raises an error instead of guessing a plausible row.</td>
             </tr>
           </tbody>
         </table>
@@ -411,15 +436,15 @@
     <section>
       <span class="snum">08 &middot; The exception</span>
       <h2>One of them wasn't a bug at all</h2>
-      <p>The last unstable profile resisted every pin, because it was a different animal. Its input was <strong>genuinely missing a value</strong> the task needed &mdash; the brief mentioned a cost but named no figure. Some runs invented a reasonable number; others declined to invent and modeled nothing. That fork swung the whole result, and no amount of specification can pin it, because the information simply isn't there.</p>
-      <p>This is the distinction worth carrying away: an <strong>unpinned mapping</strong> is an engineering fix &mdash; write the rule. A <strong>missing input</strong> is a product decision &mdash; refuse to fabricate and surface it, or go capture the value at intake. Conflating the two sends you writing rules that can't help. I flagged it, and deliberately left it open.</p>
+      <p>The last unstable profile resisted every pin, because it was a different animal. Its input was <strong>genuinely missing a value</strong> the task needed: a brief mentioned a cost but named no figure. Some runs invented a reasonable number; others declined to invent and modeled nothing. That fork swung the whole result, and no amount of specification can pin it, because the information simply isn't there.</p>
+      <p>This is the distinction worth carrying away: an <strong>unpinned mapping</strong> is an engineering fix (write the rule). A <strong>missing input</strong> is a product decision (refuse to fabricate and surface it, or go capture the value at intake). Conflating the two sends you writing rules that can't help. I flagged it, and deliberately left it open.</p>
     </section>
 
     <section>
       <span class="snum">09 &middot; Closing the loop</span>
       <h2>Re-baseline, then prove it</h2>
-      <p>Some fixes correctly <em>changed</em> the recommendation. That's not drift, it's progress &mdash; but it means the old golden runs are wrong now. So the fixes earned a new <strong>baseline epoch</strong>, versioned, so the trend line doesn't falsely lurch when you improve the thing on purpose. Old history stays attributed to the old baseline; new runs measure against the new one.</p>
-      <p>And then the step it's tempting to skip: an independent confirmation run against the fresh baselines. Because a baseline you promote and never reproduce is a hope, not a reference.</p>
+      <p>Some fixes correctly <em>changed</em> the recommendation. That's not drift, it's progress. But it means the old golden runs are wrong now. So the fixes earned a new <strong>baseline epoch</strong>, versioned, so the trend line doesn't falsely lurch when you improve the thing on purpose. Old history stays attributed to the old baseline; new runs measure against the new one.</p>
+      <p>And then the step it's tempting to skip: an independent confirmation run against the fresh baselines.</p>
       <blockquote>A baseline you can't reproduce isn't a baseline. It's a screenshot.</blockquote>
       <p>The confirmation cycle came back reproducing every golden to the last digit. Decision stability went from two-of-five to five-of-five; the suite flipped from red to green; the unexplained-drift count sat at zero. The workflow finally held still.</p>
     </section>
@@ -431,17 +456,17 @@
       <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
       <h2 style="margin-bottom:1.6rem;">What I'd bring to the next agent system</h2>
     </div>
-    <div class="wide">
+    <div class="col">
       <ol class="takes">
         <li><div class="body"><h4>Measure stability before accuracy</h4><p>Truth is expensive to grade and often undefined. "Does it hold across runs" is cheap, needs no labels, and is frequently the real failure hiding under "is it right".</p></div></li>
-        <li><div class="body"><h4>The ruler must not drift with what it measures</h4><p>Keep the measurement layer deterministic and model-free. An LLM grading an LLM can't separate a regression from a mood.</p></div></li>
+        <li><div class="body"><h4>The ruler must not drift with what it measures</h4><p>Keep the measurement layer deterministic and model-free, if your use case allows for it.</p></div></li>
         <li><div class="body"><h4>Seed the stochastic core</h4><p>When identical inputs give identical numbers, every difference between runs is signal. You stop arguing about whether a change is real and start asking what caused it.</p></div></li>
         <li><div class="body"><h4>Put a categorical on top</h4><p>"Did the decision hold?" reads in a glance. A wall of graded numbers doesn't. Lead with the verdict; keep the detail one level down.</p></div></li>
         <li><div class="body"><h4>One root cause, one failure</h4><p>Attribute the cascade to the single flip that caused it. A dashboard that reports fifteen symptoms of one bug is a dashboard nobody trusts.</p></div></li>
         <li><div class="body"><h4>Measure the margin, not just the outcome</h4><p>A flip inside a dead heat is expected; a flip away from a clear winner is an alarm. Only the closeness of the race tells the two apart.</p></div></li>
         <li><div class="body"><h4>Calibration turns flakiness into a coordinate</h4><p>Run K times in a fixed state; mode-share and variance convert "it's flaky" into a located, fixable fact.</p></div></li>
         <li><div class="body"><h4>Most agent drift is an unpinned degree of freedom</h4><p>The model is usually improvising faithfully in a gap the spec left. The fix is a deterministic rule, not a bigger model.</p></div></li>
-        <li><div class="body"><h4>Separate unpinned mappings from missing inputs</h4><p>One you pin with a rule. The other is a product decision &mdash; refuse to fabricate and surface it. Don't write rules for information that isn't there.</p></div></li>
+        <li><div class="body"><h4>Separate unpinned mappings from missing inputs</h4><p>One you pin with a rule. The other is a product decision: refuse to fabricate and surface it. Don't write rules for information that isn't there.</p></div></li>
         <li><div class="body"><h4>Version baselines; reproduce before you trust</h4><p>An intentional, correct change earns a new baseline epoch so trends don't lurch. And a baseline you can't independently reproduce isn't one.</p></div></li>
       </ol>
     </div>
@@ -449,7 +474,7 @@
 
   <footer>
     <div class="col">
-      <p>The satisfying part wasn't the green dashboard. It was watching a fuzzy, hand-wavy worry &mdash; "the agent seems inconsistent" &mdash; resolve, factor by factor, into a short list of named openings in the spec, each with a rule next to it. The workflow didn't get smarter. It got <em>specified</em>.</p>
+      <p>The satisfying part wasn't the green dashboard. It was watching a fuzzy, hand-wavy worry, "the agent seems inconsistent", resolve, factor by factor, into a short list of named openings in the spec, each with a rule next to it. The workflow didn't get smarter. It got <em>specified</em>.</p>
       <p class="sig">Field notes &middot; No. 05 &middot; built pair-programming with Claude Code &middot; details generalized</p>
     </div>
   </footer>

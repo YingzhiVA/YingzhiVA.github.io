@@ -25,7 +25,8 @@
     --fs-h2: clamp(1.55rem, 1.15rem + 1.7vw, 2.15rem);
     --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
     --fs-title: clamp(2.5rem, 1.5rem + 4.6vw, 4.4rem);
-    --col: 40rem; --wide: 58rem; --radius: 4px;
+    /* one measure: hero, prose, figures and tables share the same two edges */
+    --col: 46rem; --wide: var(--col); --radius: 4px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -190,7 +191,7 @@
       <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
       <h2 style="margin-bottom:1.6rem;">What I'd do for any generated document</h2>
     </div>
-    <div class="wide">
+    <div class="col">
       <ol class="takes">
         <li><div class="body"><h4>Render every number and table in code</h4><p>Produce the skeleton deterministically, fully populated, and leave only prose markers for the model to fill. The figures exist before the model arrives.</p></div></li>
         <li><div class="body"><h4>Never let the model transcribe a value</h4><p>Retyping a number is a fresh chance to be wrong on every run. The model writes about the numbers; it doesn't write them.</p></div></li>

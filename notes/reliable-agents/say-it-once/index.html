@@ -27,7 +27,8 @@
     --fs-h2: clamp(1.55rem, 1.15rem + 1.7vw, 2.15rem);
     --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
     --fs-title: clamp(2.5rem, 1.5rem + 4.6vw, 4.4rem);
-    --col: 40rem; --wide: 58rem; --radius: 4px;
+    /* one measure: hero, prose, figures and tables share the same two edges */
+    --col: 46rem; --wide: var(--col); --radius: 4px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -92,12 +93,30 @@
 
   .band { background: var(--surface-2); border-block: 1px solid var(--hairline); padding-block: clamp(2rem, 5vw, 3.25rem); }
   .tbl-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); margin: 1.6rem 0; }
-  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 40rem; }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 30rem; table-layout: fixed; }
+  th:first-child, td:first-child { width: 22%; }
   thead th { text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: .85rem 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2); }
-  tbody td { padding: .9rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.4; }
+  tbody td { padding: .9rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.4; overflow-wrap: break-word; }
   tbody tr:last-child td { border-bottom: 0; }
   tbody td:first-child { font-weight: 650; color: var(--accent-ink); font-family: var(--mono); font-size: .82rem; letter-spacing: .02em; }
   caption { caption-side: bottom; text-align: left; font-size: .82rem; color: var(--muted); padding-top: .75rem; font-family: var(--sans); }
+
+  /* narrow screens: stack each row into a labelled block instead of scrolling sideways */
+  @media (max-width: 34rem) {
+    .tbl-wrap { overflow-x: visible; }
+    tbody, tr, td, caption { display: block; }
+    table { min-width: 0; display: flex; flex-direction: column; }  /* flex so the caption can stay last */
+    tbody { order: 1; }
+    caption { order: 2; }
+    thead { display: none; }
+    th, td { width: auto !important; }
+    tbody tr { border-bottom: 1px solid var(--hairline); padding: .55rem 0; }
+    tbody tr:last-child { border-bottom: 0; }
+    tbody td { border-bottom: 0; padding: .45rem 1.1rem; }
+    tbody td::before { content: attr(data-label); display: block; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: .15rem; }
+    caption { padding: .75rem 1.1rem 0; }
+  }
+
 
   .takes { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; counter-reset: t; }
   .takes li { background: var(--surface); padding: 1.3rem 1.4rem 1.4rem; display: grid; grid-template-columns: 2.4rem 1fr; gap: .4rem 1rem; align-items: start; counter-increment: t; }
@@ -169,9 +188,9 @@
             <tr><th scope="col">Home</th><th scope="col">What belongs there</th><th scope="col">The edit test</th></tr>
           </thead>
           <tbody>
-            <tr><td>code</td><td>Deterministic logic, formulas, constants &mdash; anything computed.</td><td>If it's calculated, it lives with the calculation.</td></tr>
-            <tr><td>prompt</td><td>How the agent must behave: instructions, rules, output conventions.</td><td>A behavior the agent follows &mdash; stated a single time.</td></tr>
-            <tr><td>knowledge file</td><td>Domain facts and reference data the agent looks things up in.</td><td>A fact the agent consults, not one you tell it twice.</td></tr>
+            <tr><td data-label="Home">code</td><td data-label="What belongs there">Deterministic logic, formulas, constants &mdash; anything computed.</td><td data-label="The edit test">If it's calculated, it lives with the calculation.</td></tr>
+            <tr><td data-label="Home">prompt</td><td data-label="What belongs there">How the agent must behave: instructions, rules, output conventions.</td><td data-label="The edit test">A behavior the agent follows &mdash; stated a single time.</td></tr>
+            <tr><td data-label="Home">knowledge file</td><td data-label="What belongs there">Domain facts and reference data the agent looks things up in.</td><td data-label="The edit test">A fact the agent consults, not one you tell it twice.</td></tr>
           </tbody>
         </table>
       </div>
@@ -194,7 +213,7 @@
       <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
       <h2 style="margin-bottom:1.6rem;">What I'd keep single-sourced</h2>
     </div>
-    <div class="wide">
+    <div class="col">
       <ol class="takes">
         <li><div class="body"><h4>Every fact gets exactly one home</h4><p>Code, prompt, or knowledge file &mdash; pick one. The same fact in two places is a latent contradiction, not a convenience.</p></div></li>
         <li><div class="body"><h4>Reference, don't restate</h4><p>Where a fact is needed elsewhere, point at the source instead of copying it. A copy is a promise to keep two things in sync forever &mdash; and you won't.</p></div></li>

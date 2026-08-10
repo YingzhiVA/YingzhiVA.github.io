@@ -40,8 +40,9 @@
     --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
     --fs-title: clamp(2.5rem, 1.5rem + 4.6vw, 4.4rem);
 
-    --col: 40rem;
-    --wide: 58rem;
+    /* one measure: hero, prose, figures and tables share the same two edges */
+    --col: 46rem;
+    --wide: var(--col);
     --radius: 4px;
   }
 
@@ -177,7 +178,7 @@
   <div class="col">
 
     <section>
-      <p class="lead drop">This series is about the discipline that made a chain of language-model agents trustworthy, and it opens with the layer everything else stands on: the harness. By default, such a pipeline gives you no way to see where or why it went wrong. Each stage passes the next a slab of text, the next stage interprets it however it likes, and when the final answer comes out wrong you get to re-read a seventeen-minute transcript looking for the moment it went sideways. This note is about the harness that replaced all of that with something legible &mdash; and the single idea underneath it: wherever there was an implicit assumption, I put an explicit contract.</p>
+      <p class="lead drop">This series is about the discipline that made a chain of language-model agents trustworthy, and it opens with the layer everything else stands on: the harness. By default, such a pipeline gives you no way to see where or why it went wrong. Each stage passes the next a slab of text, the next stage interprets it however it likes, and when the final answer comes out wrong you get to re-read a seventeen-minute transcript looking for the moment it went sideways. This note is about the harness that replaced all of that with something legible, and the single idea underneath it: wherever there was an implicit assumption, I put an explicit contract.</p>
     </section>
 
     <hr class="tick" />
@@ -185,7 +186,7 @@
     <section>
       <span class="snum">01 &middot; The hand-off</span>
       <h2>A strict schema at every seam</h2>
-      <p>Between two stages, an unvalidated blob of JSON is just a rumor &mdash; the next stage <em>believes</em> it, but nobody checked. So every hand-off got a <strong>strict schema</strong> as its contract: required fields, exact types, value patterns, and &mdash; the part that earns its keep &mdash; <em class="term">additionalProperties: false</em>, so an unexpected field is an error, not a shrug. A stage's output is validated the instant it's produced, against the contract the next stage relies on.</p>
+      <p>Between two stages, an unvalidated blob of JSON is just a rumor. The next stage <em>believes</em> it, but nobody checked. So every hand-off got a <strong>strict schema</strong> as its contract: required fields, exact types, value patterns, and the part that earns its keep: <em class="term">additionalProperties: false</em>, so an unexpected field is an error, not a shrug. A stage's output is validated the instant it's produced, against the contract the next stage relies on.</p>
 
       <div class="code" role="img" aria-label="Example: a stage-3 output JSON validated against its schema, strict mode, unknown fields rejected.">
 <pre><span class="cm"># stage_3.output.json — written, validated, then handed on</span>
@@ -198,27 +199,27 @@
 <span class="ok">&check; valid</span> &mdash; stage_3.schema.json  <span class="cm">·  strict: unknown fields rejected</span></pre>
       </div>
 
-      <p>The value isn't the validation for its own sake &mdash; it's <em>where</em> the failure lands. Without a contract, a slightly-wrong field slips through, three stages compound on it, and the damage surfaces at the very end as a plausible-looking wrong answer with no return address. With one, the run stops at the boundary that produced the fault, loudly, pointing at itself.</p>
+      <p>The value isn't the validation for its own sake, it's <em>where</em> the failure lands. Without a contract, a slightly-wrong field slips through, three stages compound on it, and the damage surfaces at the very end as a plausible-looking wrong answer with no return address. With one, the run stops at the boundary that produced the fault, loudly, pointing at itself.</p>
       <blockquote>Between two agents, an unvalidated JSON is just a rumor.</blockquote>
 
       <h3>Shape is necessary, but not sufficient</h3>
-      <p>A schema proves each hand-off is well-formed. It can't prove two well-formed hand-offs <em>agree</em>. One stage can emit a perfectly valid number that a later stage never expected &mdash; each individually legal, jointly contradictory &mdash; and no per-stage schema will say a word. So the contracts don't stop at shape. Before the final stage assembles the report, a preflight re-checks that the stages actually reconcile: that the pension one stage reports is the pension the tax stage assumed; that a figure computed in one place matches the one consumed in another; that the balances carried forward are the projected ones, not today's. These are checks on <em>meaning</em>, not form &mdash; and they catch the bug a schema is blind to: everyone honored the contract, and they still disagree.</p>
+      <p>A schema proves each hand-off is well-formed. It can't prove two well-formed hand-offs <em>agree</em>. One stage can emit a perfectly valid number that a later stage never expected and no per-stage schema will say a word. So the contracts don't stop at shape. Before the final stage assembles the report, a preflight re-checks that the stages actually reconcile: that a figure computed in one place matches the one consumed in another; that the balances carried forward are the projected ones, not today's. These are checks on <em>meaning</em>, not form. They catch the bug a schema is blind to: everyone honored the contract, and they still disagree.</p>
       <blockquote>A schema says each hand-off is well-formed. It can't say two well-formed hand-offs agree.</blockquote>
     </section>
 
     <section>
       <span class="snum">02 &middot; The savepoint</span>
       <h2>Every boundary writes to disk</h2>
-      <p>Because each stage emits its contract-checked JSON <strong>to a file</strong>, a run isn't an event that happens and vanishes &mdash; it leaves a trail of savepoints. When a final answer looked wrong, I stopped re-reading transcripts. I opened the intermediate artifacts and diffed them against a known-good run, boundary by boundary, until I found the first one that diverged.</p>
-      <p>That stage owns the bug. Everything downstream of it is just faithfully compounding an error it inherited; everything upstream matched. The search collapses from "somewhere in seventeen minutes of reasoning" to "the first artifact that's wrong." It's a move that runs through this whole series &mdash; localize the blame by construction &mdash; here so the unit of blame is a single pipeline stage.</p>
+      <p>Because each stage emits its contract-checked JSON <strong>to a file</strong>, a run isn't an event that happens and vanishes, it leaves a trail of savepoints. When a final answer looked wrong, I stopped re-reading transcripts. I opened the intermediate artifacts and diffed them against a known-good run, boundary by boundary, until I found the first one that diverged.</p>
+      <p>That stage owns the bug. Everything downstream of it is just faithfully compounding an error it inherited. The search collapses from "somewhere in seventeen minutes of reasoning" to "the first artifact that's wrong." It's a move that runs through this whole series: localize the blame by construction.</p>
       <blockquote>The first artifact that's wrong is the stage that's wrong.</blockquote>
     </section>
 
     <section>
       <span class="snum">03 &middot; The arithmetic</span>
       <h2>The model decides; the code computes</h2>
-      <p>The largest source of silent variation wasn't reasoning at all &mdash; it was letting the agent <em>re-derive</em> deterministic calculations on the fly. Ask a model to redo the same arithmetic on each run and it will write it a little differently each time: a rounding choice here, a reordered step there, and the number wanders for reasons no transcript will confess.</p>
-      <p>So every deterministic calculation was written down once, as a tested function in a library. The agent's job shrank to the part it's genuinely good at &mdash; reading messy input, gathering the right values, deciding <em>what</em> to compute &mdash; and the arithmetic moved to the part of the system that's good at it: code that returns the same answer every time and lives in one place you can read, test, and fix.</p>
+      <p>The largest source of silent variation wasn't reasoning at all, it was letting the agent <em>re-derive</em> deterministic calculations on the fly. Ask a model to redo the same arithmetic on each run and it will write it a little differently each time: a rounding choice here, a reordered step there, and the number wanders for reasons no transcript will confess.</p>
+      <p>So every deterministic calculation was written down once, as a tested function in a library. The agent's job shrank to the part it's genuinely good at, which is reading messy input, gathering the right values, deciding <em>what</em> to compute, and the arithmetic moved to the part of the system that's good at it: code that returns the same answer every time and lives in one place you can read, test, and fix.</p>
 
       <div class="contrast">
         <div class="card bad">
@@ -229,7 +230,7 @@
         <div class="card good">
           <span class="role">This</span>
           <h4>The model as caller</h4>
-          <p>Each calculation written once, tested, and called. Same inputs, same output, every run &mdash; and a single place to inspect and correct the logic.</p>
+          <p>Each calculation written once, tested, and called. Same inputs, same output, every run, plus a single place to inspect and correct the logic.</p>
         </div>
       </div>
 
@@ -241,7 +242,7 @@
       <span class="snum">04 &middot; Why it's the floor</span>
       <h2>None of the other notes work without this</h2>
       <p>The harness is the least glamorous thing I built and the one everything else stands on. The stability eval this series ends on can only diff two runs because each stage leaves a machine-readable artifact behind. The complexity-vector curriculum can only blame one axis once it can first blame one stage. Reproducibility &mdash; "same input, same output," the precondition for measuring anything &mdash; exists only because the math lives in seeded, tested code instead of in the model's head.</p>
-      <p>Contracts made the seams visible. Savepoints made failures addressable. Moving the computation into code made the numbers mean something. Not clever, any of it &mdash; just the difference between a system you can reason about and one you can only hope about.</p>
+      <p>Contracts made the seams visible. Savepoints made failures addressable. Moving the computation into code made the numbers mean something.</p>
     </section>
 
   </div>
@@ -251,24 +252,23 @@
       <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
       <h2 style="margin-bottom:1.6rem;">What I'd wire into any agent pipeline</h2>
     </div>
-    <div class="wide">
+    <div class="col">
       <ol class="takes">
         <li><div class="body"><h4>Put a strict schema on every hand-off</h4><p>Required fields, exact types, and no unknown fields. The contract catches malformed output at the boundary that produced it, not three stages later.</p></div></li>
         <li><div class="body"><h4>Fail loud upstream, not quiet downstream</h4><p>A schema violation at the seam beats a plausible-looking wrong answer at the end. Loud-and-early has a return address; quiet-and-late doesn't.</p></div></li>
         <li><div class="body"><h4>Check that stages agree, not just that each is valid</h4><p>Shape contracts catch a malformed hand-off; a cross-stage consistency pass catches two well-formed stages that quietly contradict each other. Validate meaning, not only form.</p></div></li>
         <li><div class="body"><h4>Persist every stage's output</h4><p>Write each contract-checked artifact to disk. A run then leaves a trail of savepoints instead of vanishing when it finishes.</p></div></li>
         <li><div class="body"><h4>Debug by diffing artifacts, not re-reading transcripts</h4><p>Compare intermediate outputs against a known-good run. The first artifact that diverges names the stage that owns the bug.</p></div></li>
-        <li><div class="body"><h4>Move deterministic math into tested code</h4><p>Write each calculation once, as a function. The agent gathers inputs and calls it &mdash; it never re-derives the parts that were never meant to vary.</p></div></li>
+        <li><div class="body"><h4>Move deterministic math into tested code</h4><p>Write each calculation once, as a function. The agent gathers inputs and calls it. It never re-derives the parts that were never meant to vary.</p></div></li>
         <li><div class="body"><h4>Let the model decide, let code compute</h4><p>Give judgment and messy-input reading to the agent; give repeatable arithmetic to the function. Each does the half it's good at.</p></div></li>
-        <li><div class="body"><h4>A function is a contract too</h4><p>A tested function is a promise about the math the way a schema is a promise about the shape. Replace implicit assumptions with explicit contracts, inward and outward.</p></div></li>
-        <li><div class="body"><h4>The harness is the foundation, not the feature</h4><p>Contracts, savepoints, and computation-in-code are unglamorous &mdash; and they're what make stability measurable and failures localizable at all.</p></div></li>
+        <li><div class="body"><h4>The harness is the foundation, not the feature</h4><p>Contracts, savepoints, and computation-in-code are unglamorous. But they're what make stability measurable and failures localizable at all.</p></div></li>
       </ol>
     </div>
   </div>
 
   <footer>
     <div class="col">
-      <p>I spent the flashy hours on evals and test curricula, but this is the note I'd hand a past version of myself first. Give the pipeline seams you can see, boundaries you can save, and math that doesn't move &mdash; and the interesting problems become tractable. Skip it, and you're debugging a rumor.</p>
+      <p>I spent the flashy hours on evals and test curricula, but this is the note I'd hand a past version of myself first. Give the pipeline seams you can see, boundaries you can save, and math that doesn't move,  then the interesting problems become tractable.</p>
       <p class="sig">Field notes &middot; No. 01 &middot; built pair-programming with Claude Code &middot; details generalized</p>
     </div>
   </footer>

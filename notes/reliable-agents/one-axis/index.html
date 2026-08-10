@@ -40,8 +40,9 @@
     --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
     --fs-title: clamp(2.5rem, 1.5rem + 4.6vw, 4.4rem);
 
-    --col: 40rem;
-    --wide: 58rem;
+    /* one measure: hero, prose, figures and tables share the same two edges */
+    --col: 46rem;
+    --wide: var(--col);
     --radius: 4px;
   }
 
@@ -224,14 +225,32 @@
   /* ---------- vectors table ---------- */
   .band { background: var(--surface-2); border-block: 1px solid var(--hairline); padding-block: clamp(2rem, 5vw, 3.25rem); }
   .tbl-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); }
-  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 40rem; }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 30rem; table-layout: fixed; }
+  th:first-child, td:first-child { width: 26%; }
   thead th { text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: .85rem 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2); }
-  tbody td { padding: .9rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.4; }
+  tbody td { padding: .9rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.4; overflow-wrap: break-word; }
   tbody tr:last-child td { border-bottom: 0; }
   tbody td:first-child { font-weight: 650; color: var(--ink); font-family: var(--serif); }
   td.easy { color: var(--stable); }
   td.hard { color: var(--drift); }
   caption { caption-side: bottom; text-align: left; font-size: .82rem; color: var(--muted); padding-top: .75rem; font-family: var(--sans); }
+
+  /* narrow screens: stack each row into a labelled block instead of scrolling sideways */
+  @media (max-width: 34rem) {
+    .tbl-wrap { overflow-x: visible; }
+    tbody, tr, td, caption { display: block; }
+    table { min-width: 0; display: flex; flex-direction: column; }  /* flex so the caption can stay last */
+    tbody { order: 1; }
+    caption { order: 2; }
+    thead { display: none; }
+    th, td { width: auto !important; }
+    tbody tr { border-bottom: 1px solid var(--hairline); padding: .55rem 0; }
+    tbody tr:last-child { border-bottom: 0; }
+    tbody td { border-bottom: 0; padding: .45rem 1.1rem; }
+    tbody td::before { content: attr(data-label); display: block; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: .15rem; }
+    caption { padding: .75rem 1.1rem 0; }
+  }
+
   .band .cap { font-family: var(--mono); font-size: .74rem; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; margin: 0 0 1.25rem; }
 
   /* ---------- takeaways ---------- */
@@ -263,7 +282,7 @@
       <span class="rule"></span>
     </div>
     <h1>One Axis at a Time</h1>
-    <p class="dek">Real clients were too scarce and too sensitive to test with, so I manufactured them &mdash; by breaking &ldquo;a complicated situation&rdquo; into complexity vectors and growing the test set one dimension at a time.</p>
+    <p class="dek">Real clients were too scarce and too sensitive to test with, so I manufactured them by breaking &ldquo;a complicated situation&rdquo; into complexity vectors and growing the test set one dimension at a time.</p>
     <div class="meta">
       <span>Field note</span>
       <span>&middot;</span>
@@ -289,7 +308,7 @@
   <div class="col">
 
     <section>
-      <p class="lead drop">You can't test a pipeline you can't feed. Real client situations were scarce, sensitive, and inconveniently shaped, so before I could measure whether the agents were stable I needed a way to manufacture clients &mdash; synthetic profiles, plausible enough to exercise the workflow and controlled enough to reason about. The naive version, "generate a random client," fails twice over: it hands you either a toy nobody resembles, or a tangle so knotted that when the agent stumbles you can't say what tripped it.</p>
+      <p class="lead drop">You can't test a pipeline you can't feed. Real client situations were scarce, sensitive, and inconveniently shaped, so before I could measure whether the agents were stable I needed a way to manufacture clients: synthetic profiles, plausible enough to exercise the workflow and controlled enough to reason about. The naive version, "generate a random client," fails twice over: it hands you either a toy nobody resembles, or a tangle so knotted that when the agent stumbles you can't say what tripped it.</p>
       <p>What I wanted was the opposite of random: inputs I could dial deliberately, so that every failure pointed back at a cause. That meant giving "complicated" a structure.</p>
     </section>
 
@@ -298,21 +317,21 @@
     <section>
       <span class="snum">01 &middot; The idea</span>
       <h2>Complexity isn't a scalar. It's a set of axes.</h2>
-      <p>The move that unlocked everything was refusing to treat difficulty as a single number. A client's situation isn't just "hard" &mdash; it's hard in <em>particular ways</em>, and those ways are largely independent of one another. So I broke the situation into a set of <strong>complexity vectors</strong>: dimensions, each its own spectrum running from easy-to-model at one end to hard-to-model at the other. A synthetic profile is then just a point in that space &mdash; one level chosen on every axis.</p>
+      <p>The move that unlocked everything was refusing to treat difficulty as a single number. A client's situation isn't just "hard", it's hard in <em>particular ways</em>, and those ways are largely independent of one another. So I broke the situation into a set of <strong>complexity vectors</strong>: dimensions, each its own spectrum running from easy-to-model at one end to hard-to-model at the other. A synthetic profile is then just a point in that space, one level chosen on every axis.</p>
 
       <div class="tbl-wrap" role="region" aria-label="Example complexity vectors, easy end to hard end">
         <table>
-          <caption>A handful of the axes. Each is a spectrum, not a switch &mdash; a profile picks a level on every one.</caption>
+          <caption>A handful of the axes (redacted). Each is a spectrum, not a switch. A profile picks a level on every one.</caption>
           <thead>
             <tr><th scope="col">Complexity vector</th><th scope="col">Easy-to-model end</th><th scope="col">Hard-to-model end</th></tr>
           </thead>
           <tbody>
-            <tr><td>Household</td><td class="easy">one person, one timeline</td><td class="hard">multiple parties, dependents, staggered timelines</td></tr>
-            <tr><td>Assets</td><td class="easy">a single simple holding</td><td class="hard">many account types across coarse and fine categories</td></tr>
-            <tr><td>Timeline</td><td class="easy">one event on one date</td><td class="hard">several staggered events over many years</td></tr>
-            <tr><td>Tax exposure</td><td class="easy">one common regime</td><td class="hard">multiple interacting regimes and edge rules</td></tr>
-            <tr><td>Obligations</td><td class="easy">none</td><td class="hard">several time-bounded or conditional commitments</td></tr>
-            <tr><td>Input completeness</td><td class="easy">every figure supplied</td><td class="hard">costs named but left unquantified</td></tr>
+            <tr><td data-label="Complexity vector">Household</td><td class="easy" data-label="Easy-to-model end">one person, one timeline</td><td class="hard" data-label="Hard-to-model end">multiple parties, dependents, staggered timelines</td></tr>
+            <tr><td data-label="Complexity vector">Assets</td><td class="easy" data-label="Easy-to-model end">a single simple holding</td><td class="hard" data-label="Hard-to-model end">many account types across coarse and fine categories</td></tr>
+            <tr><td data-label="Complexity vector">Timeline</td><td class="easy" data-label="Easy-to-model end">one event on one date</td><td class="hard" data-label="Hard-to-model end">several staggered events over many years</td></tr>
+            <tr><td data-label="Complexity vector">Tax exposure</td><td class="easy" data-label="Easy-to-model end">one common regime</td><td class="hard" data-label="Hard-to-model end">multiple interacting regimes and edge rules</td></tr>
+            <tr><td data-label="Complexity vector">Obligations</td><td class="easy" data-label="Easy-to-model end">none</td><td class="hard" data-label="Hard-to-model end">several time-bounded or conditional commitments</td></tr>
+            <tr><td data-label="Complexity vector">Input completeness</td><td class="easy" data-label="Easy-to-model end">every figure supplied</td><td class="hard" data-label="Hard-to-model end">costs named but left unquantified</td></tr>
           </tbody>
         </table>
       </div>
@@ -323,14 +342,14 @@
     <section>
       <span class="snum">02 &middot; Why a vector beats a dial</span>
       <h2>Localized difficulty means localized blame</h2>
-      <p>A one-to-five difficulty dial would have been easier to build and useless to debug. When a case rated "hard" fails, the rating tells you nothing about <em>why</em>. A vector does: it says this profile is level-three on assets and near the floor on everything else &mdash; so if it breaks, assets is your first and only suspect. The structure I put into the input is exactly the structure I get back in the diagnosis.</p>
-      <p>This is the same instinct as the harness note, pushed one step upstream into the test data itself: localize the blame by construction. The harness localizes a failure to a single stage; graded inputs localize it to a single dimension &mdash; one hard axis kept from hiding inside a vague "complex case." Design the inputs so the outputs can only point one way.</p>
+      <p>A one-to-five difficulty dial would have been easier to build and useless to debug. When a case rated "hard" fails, the rating tells you nothing about <em>why</em>. A vector does: it says this profile is level-three on assets and near the floor on everything else. So if it breaks, assets is your first and only suspect. The structure I put into the input is exactly the structure I get back in the diagnosis.</p>
+      <p>This is the same instinct as the harness note, pushed one step upstream into the test data itself: localize the blame by construction. The harness localizes a failure to a single stage; graded inputs localize it to a single dimension, i.e. the one hard axis kept from hiding inside a vague "complex case." Design the inputs so the outputs can only point one way.</p>
     </section>
 
     <section>
       <span class="snum">03 &middot; Where to start</span>
       <h2>The common case, not the easy case</h2>
-      <p>The temptation is to begin at the origin &mdash; every axis at its minimum. I didn't. An all-easy profile is a strawman: no real client is that tidy, and stabilizing on it would teach me nothing about the distribution I'd actually serve. So I anchored at the <strong>most common</strong> vector instead &mdash; the typical client &mdash; which is emphatically <em>not</em> the easiest on every axis. Most people carry real complexity somewhere; the common case already sits a notch or two up several dimensions.</p>
+      <p>The temptation is to begin at the origin where every axis is at its minimum. I didn't. An all-easy profile is a strawman: no real client is that tidy, and stabilizing on it would teach me nothing about the distribution I'd actually serve. So I anchored at the <strong>most common</strong> vector instead: the typical client,  which is emphatically <em>not</em> the easiest on every axis. Most people carry real complexity somewhere; the common case already sits a notch or two up several dimensions.</p>
       <blockquote>Start where your clients actually are, not where the model is most comfortable.</blockquote>
       <p>That choice matters more than it looks. The first profile you stabilize becomes the trunk everything else grows from. Root it in a fiction and every branch inherits the fiction; root it in the modal client and every expansion is a step into territory you'll genuinely have to serve.</p>
     </section>
@@ -338,17 +357,17 @@
     <section>
       <span class="snum">04 &middot; The growth rule</span>
       <h2>Advance one axis at a time, behind a regression gate</h2>
-      <p>From that anchor the plan was a curriculum, not a data dump. First, get the agents <strong>stable</strong> on the common profile &mdash; stable in the sense the eval that closes this series measures: the recommendation reproduces run to run. Only then grow the complexity, and only in <strong>one dimension &mdash; two at the very most</strong> &mdash; per step. Re-run the whole suite, check for regression, and move outward only once it's green again.</p>
-      <p>The size of the step is the entire discipline. Advance three axes at once and something breaks, and you're back to guessing which of the three did it &mdash; you've re-created the very ambiguity the vectors were built to kill. Move one, and a failure names its own cause.</p>
+      <p>From that anchor the plan was a curriculum, not a data dump. First, get the agents <strong>stable</strong> on the common profile. Stable in the sense the eval that closes this series measures: the recommendation reproduces run to run. Only then grow the complexity, and only in <strong>one dimension, two at the very most</strong> per step. Re-run the whole suite, check for regression, and move outward only once it's green again.</p>
+      <p>The size of the step is the entire discipline. Advance three axes at once and something breaks, and you're back to guessing which of the three did it. You've re-created the very ambiguity the vectors were built to kill. Move one, and a failure names its own cause.</p>
       <blockquote>Move one axis, and a failure names its own cause.</blockquote>
-      <p>The regression gate is what makes the ground permanent. Every profile already passing stays in the suite forever, so each expansion has to earn its place <em>without</em> costing the ones behind it. Capability only ratchets forward. What you get is a difficulty curriculum where the agents are made incrementally more capable &mdash; each step a little harder, none of them a leap.</p>
+      <p>The regression gate is what makes the ground permanent. Every profile already passing stays in the suite forever, so each expansion has to earn its place <em>without</em> costing the ones behind it. Capability only ratchets forward. What you get is a difficulty curriculum where the agents are made incrementally more capable. Each step a little harder, none of them a leap.</p>
     </section>
 
     <section>
       <span class="snum">05 &middot; What the test set becomes</span>
       <h2>A map, not a pile</h2>
-      <p>Run this for a while and the test set stops being a heap of cases and becomes a <strong>map</strong>: a lattice of covered profiles with a visible frontier &mdash; the edge of what the agents can reliably handle. Growth is deliberate and legible. You can point at the boundary and say, precisely, "we're solid two levels up on assets and timeline, one level up on tax, and we haven't touched multi-party households yet." Coverage stops being a box you check and becomes a frontier you push.</p>
-      <p>And the hardest end of one axis &mdash; a profile that names a cost but never a figure &mdash; is exactly the kind of genuinely missing input that pinning can't fix: the open problem the eval closing this series runs headlong into. Putting it on an axis was how I turned "we don't handle that yet" from a surprise into a coordinate: a known point beyond the current frontier, waiting its turn, not a landmine.</p>
+      <p>Run this for a while and the test set stops being a heap of cases and becomes a <strong>map</strong>: a lattice of covered profiles with a visible frontier, the edge of what the agents can reliably handle. Growth is deliberate and legible. You can point at the boundary and say, precisely, "we're solid two levels up on assets and timeline, one level up on tax, and we haven't touched multi-party households yet." Coverage stops being a box you check and becomes a frontier you push.</p>
+      <p>And the hardest end of one axis: a profile that names a cost but never a figure, is exactly the kind of genuinely missing input that pinning can't fix: the open problem the eval closing this series runs headlong into. Putting it on an axis was how I turned "we don't handle that yet" from a surprise into a coordinate: a known point beyond the current frontier, waiting its turn, not a landmine.</p>
     </section>
 
   </div>
@@ -358,23 +377,23 @@
       <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
       <h2 style="margin-bottom:1.6rem;">What I'd bring to the next test set</h2>
     </div>
-    <div class="wide">
+    <div class="col">
       <ol class="takes">
         <li><div class="body"><h4>Model difficulty as a vector, not a scalar</h4><p>Break "complex" into independent dimensions, each a spectrum from easy to hard. A single number can't be debugged.</p></div></li>
         <li><div class="body"><h4>Make failures localizable by construction</h4><p>If a case moved on only one axis, the culprit is obvious. Put the structure into the input and you get it back in the diagnosis.</p></div></li>
-        <li><div class="body"><h4>Start at the common case, not the easy case</h4><p>The all-minimum profile is a fiction nobody resembles. Anchor on the modal client &mdash; complexity and all &mdash; so every branch grows from reality.</p></div></li>
-        <li><div class="body"><h4>Grow one axis at a time &mdash; two at most</h4><p>Small steps keep attribution clean. A big jump that breaks leaves you guessing which new dimension did it.</p></div></li>
+        <li><div class="body"><h4>Start at the common case, not the easy case</h4><p>The all-minimum profile is a fiction nobody resembles. Anchor on the typical client, complexity and all, so every branch grows from reality.</p></div></li>
+        <li><div class="body"><h4>Grow one axis at a time, two at most</h4><p>Small steps keep attribution clean. A big jump that breaks leaves you guessing which new dimension did it.</p></div></li>
         <li><div class="body"><h4>Gate every step on regression</h4><p>Keep every passing profile in the suite forever. Capability should ratchet: each expansion earns its place without costing the ground behind it.</p></div></li>
-        <li><div class="body"><h4>Stability is the prerequisite for growth</h4><p>You can only expand from a base that reproduces. Get one profile stable before you make it harder &mdash; the curriculum rests on it.</p></div></li>
+        <li><div class="body"><h4>Stability is the prerequisite for growth</h4><p>You can only expand from a base that reproduces. Get one profile stable before you make it harder.</p></div></li>
         <li><div class="body"><h4>Synthetic data should be parameterized, not random</h4><p>Dial the inputs deliberately. Legible inputs are what make failures legible; randomness just hides the cause.</p></div></li>
-        <li><div class="body"><h4>Put "not yet" on an axis</h4><p>An unsupported case at the hard end of a known dimension is a plan, not a gap &mdash; a coordinate beyond the frontier, waiting its turn.</p></div></li>
+        <li><div class="body"><h4>Put "not yet" on an axis</h4><p>An unsupported case at the hard end of a known dimension is a plan, not a gap. A coordinate beyond the frontier, waiting its turn.</p></div></li>
       </ol>
     </div>
   </div>
 
   <footer>
     <div class="col">
-      <p>The satisfaction is the one that runs through this whole series: taking something everyone waves at as "it's complicated" and giving it axes and coordinates. Once a hard case has an address, you can walk toward it one step at a time &mdash; and know, each morning, exactly how far you've come and precisely what's next.</p>
+      <p>The satisfaction is the one that runs through this whole series: taking something everyone waves at as "it's complicated" and giving it axes and coordinates. Once a hard case has an address, you can walk toward it one step at a time and know, each morning, exactly how far you've come and precisely what's next.</p>
       <p class="sig">Field notes &middot; No. 04 &middot; built pair-programming with Claude Code &middot; details generalized</p>
     </div>
   </footer>
