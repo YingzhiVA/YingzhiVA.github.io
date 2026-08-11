@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Field note No. 02: deciding an XGBoost model is finished and reading what it says: judging an AUC, using fold variance to know when to stop tuning, and interpreting a SHAP summary plot.">
+<meta name="author" content="Yingzhi Vilimelis Aceituno">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Stop Tuning, Start Reading">
+<meta property="og:description" content="Field note No. 02: judging an AUC, using fold variance to know when to stop tuning, and interpreting a SHAP summary plot.">
+<meta property="og:url" content="https://yingzhiva.github.io/notes/referral-analytics/stop-tuning/">
+<meta property="og:image" content="https://yingzhiva.github.io/notes/referral-analytics/stop-tuning/shap-summary.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://yingzhiva.github.io/notes/referral-analytics/stop-tuning/shap-summary.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237b3fa0'/><text x='50' y='73' font-size='58' font-family='Georgia,serif' fill='white' text-anchor='middle'>◈</text></svg>">
+<style>html{-webkit-text-size-adjust:100%}img,canvas,svg{max-width:100%}</style>
+<title>Stop Tuning, Start Reading</title>
+
+<style>
+  :root {
+    --ground: #f1eff4;
+    --surface: #fbfafc;
+    --surface-2: #e9e6ee;
+    --code-bg: #f5f2f9;
+    --ink: #201a2b;
+    --muted: #5f5670;
+    --faint: #8d84a0;
+    --hairline: #dcd7e3;
+    --accent: #7b3fa0;      /* the purple midpoint of the SHAP colormap */
+    --accent-ink: #5f2e7d;
+    --low: #1a6fc4;         /* SHAP blue: low feature value */
+    --high: #c62258;        /* SHAP magenta: high feature value */
+    --low-wash: rgba(26,111,196,.12);
+    --high-wash: rgba(198,34,88,.11);
+
+    --serif: "Charter", "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+    --fs-eyebrow: .72rem;
+    --fs-body: 1.08rem;
+    --fs-small: .92rem;
+    --fs-code: .855rem;
+    --fs-h4: 1.08rem;
+    --fs-h3: 1.32rem;
+    --fs-h2: clamp(1.55rem, 1.15rem + 1.7vw, 2.15rem);
+    --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
+    --fs-title: clamp(2.4rem, 1.5rem + 4.2vw, 4.1rem);
+
+    /* one measure: hero, prose, figures and code share the same two edges */
+    --col: 46rem;
+    --wide: var(--col);
+    --radius: 4px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #12101a;
+      --surface: #1b1826;
+      --surface-2: #211d2e;
+      --code-bg: #171320;
+      --ink: #e3dfea;
+      --muted: #9d94ad;
+      --faint: #6f6683;
+      --hairline: #2f2a3d;
+      --accent: #b382d6;
+      --accent-ink: #cba6e6;
+      --low: #5aa9ea;
+      --high: #ef6f96;
+      --low-wash: rgba(90,169,234,.13);
+      --high-wash: rgba(239,111,150,.13);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #f1eff4; --surface: #fbfafc; --surface-2: #e9e6ee; --code-bg: #f5f2f9;
+    --ink: #201a2b; --muted: #5f5670; --faint: #8d84a0; --hairline: #dcd7e3;
+    --accent: #7b3fa0; --accent-ink: #5f2e7d; --low: #1a6fc4; --high: #c62258;
+    --low-wash: rgba(26,111,196,.12); --high-wash: rgba(198,34,88,.11);
+  }
+  :root[data-theme="dark"] {
+    --ground: #12101a; --surface: #1b1826; --surface-2: #211d2e; --code-bg: #171320;
+    --ink: #e3dfea; --muted: #9d94ad; --faint: #6f6683; --hairline: #2f2a3d;
+    --accent: #b382d6; --accent-ink: #cba6e6; --low: #5aa9ea; --high: #ef6f96;
+    --low-wash: rgba(90,169,234,.13); --high-wash: rgba(239,111,150,.13);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--fs-body);
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .col { max-width: var(--col); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+  .wide { max-width: var(--wide); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--fs-eyebrow);
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    border-bottom: 1px solid var(--hairline);
+    padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 4vw, 2.75rem);
+    background:
+      radial-gradient(120% 80% at 92% -10%, var(--high-wash), transparent 60%),
+      radial-gradient(90% 70% at 0% 0%, var(--low-wash), transparent 55%);
+  }
+  .hero .kicker { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.5rem; }
+  .hero .kicker .rule { height: 1px; flex: 1; background: var(--hairline); }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: var(--fs-title);
+    line-height: 1.03;
+    letter-spacing: -.028em;
+    margin: 0 0 .7rem;
+    text-wrap: balance;
+  }
+  .dek {
+    font-size: var(--fs-dek);
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0 0 1.9rem;
+    max-width: 35rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.1rem;
+  }
+
+  /* ---------- figures ---------- */
+  figure {
+    margin: clamp(1.75rem, 4vw, 2.75rem) 0 0;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  figure svg { display: block; width: 100%; height: auto; }
+  figure figcaption {
+    border-top: 1px solid var(--hairline);
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .02em;
+    line-height: 1.55;
+    color: var(--muted);
+    padding: .7rem 1rem;
+    background: var(--surface-2);
+  }
+  figure figcaption a { color: var(--accent-ink); }
+
+  /* the fold-spread diagram: styled by class so it follows the theme */
+  .fd-head { font-family: var(--sans); font-size: 13px; font-weight: 700; fill: var(--ink); }
+  .fd-note { font-family: var(--sans); font-size: 11.5px; fill: var(--muted); }
+  .fd-tick { font-family: var(--mono); font-size: 9.5px; fill: var(--faint); }
+  .fd-axis { stroke: var(--hairline); }
+  .fd-mean { stroke: var(--faint); stroke-dasharray: 2 5; opacity: .65; }
+  .fd-dot-ok { fill: var(--accent); }
+  .fd-dot-bad { fill: var(--high); }
+  .fd-band-ok { fill: var(--low-wash); stroke: var(--accent); stroke-dasharray: 3 3; }
+  .fd-band-bad { fill: var(--high-wash); stroke: var(--high); stroke-dasharray: 3 3; }
+  .fd-verdict-ok { fill: var(--accent-ink); font-family: var(--sans); font-size: 11.5px; font-weight: 700; }
+  .fd-verdict-bad { fill: var(--high); font-family: var(--sans); font-size: 11.5px; font-weight: 700; }
+
+  @media (max-width: 34rem) {
+    .fd-head { font-size: 16px; }
+    .fd-note, .fd-verdict-ok, .fd-verdict-bad { font-size: 14px; }
+    .fd-tick { font-size: 12px; }
+  }
+
+  /* the SHAP screenshot sits on a permanent white plate so it stays legible in dark mode */
+  figure.shot .plate { background: #fff; padding: .7rem; }
+  figure.shot img { display: block; width: 100%; height: auto; }
+
+  /* ---------- prose ---------- */
+  main { padding-block: clamp(2.5rem, 6vw, 4rem); }
+  section { padding-block: clamp(1.5rem, 4vw, 2.5rem); }
+  .snum {
+    font-family: var(--mono);
+    font-size: var(--fs-eyebrow);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: block;
+    margin-bottom: .55rem;
+  }
+  h2 {
+    font-family: var(--sans);
+    font-weight: 750;
+    font-size: var(--fs-h2);
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    margin: 0 0 1rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: var(--fs-h3);
+    letter-spacing: -.01em;
+    margin: 2.4rem 0 .6rem;
+  }
+  h4 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: var(--fs-h4);
+    letter-spacing: -.005em;
+    margin: 1.9rem 0 .5rem;
+    color: var(--ink);
+  }
+  p { margin: 0 0 1.15rem; }
+  sup { line-height: 0; }
+  .lead { font-size: 1.16rem; color: var(--ink); }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  code {
+    font-family: var(--mono);
+    font-size: .88em;
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    padding: .08em .35em;
+    border-radius: 3px;
+    overflow-wrap: break-word;
+  }
+
+  .drop::first-letter {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 3.3em;
+    line-height: .82;
+    float: left;
+    padding: .04em .12em 0 0;
+    color: var(--accent);
+  }
+
+  blockquote {
+    margin: 2.2rem 0;
+    padding-left: 1.15rem;
+    border-left: 3px solid var(--accent);
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: clamp(1.2rem, 1.02rem + .9vw, 1.5rem);
+    line-height: 1.32;
+    letter-spacing: -.015em;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+
+  /* ---------- callouts ---------- */
+  .callout {
+    margin: 0 0 1.6rem;
+    padding: 1rem 1.15rem;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: var(--fs-small);
+    color: var(--muted);
+  }
+  .callout p { margin: 0; }
+  .callout p + p { margin-top: .6rem; }
+  .callout .tag {
+    display: block;
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin-bottom: .3rem;
+    font-weight: 600;
+  }
+
+  /* ---------- code ---------- */
+  .code { position: relative; margin: 1.5rem 0 1.7rem; }
+  .code pre {
+    margin: 0;
+    background: var(--code-bg);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 1.4rem 1.1rem 1.05rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: var(--fs-code);
+    line-height: 1.62;
+    color: var(--ink);
+    tab-size: 2;
+  }
+  .code pre code {
+    font-family: inherit; font-size: inherit; color: inherit;
+    background: none; padding: 0; border-radius: 0;
+    white-space: pre;
+  }
+  .code .lang {
+    position: absolute; top: 0; right: 0;
+    font-family: var(--mono); font-size: .62rem; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--faint); background: var(--surface-2);
+    border-left: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+    padding: .24rem .55rem; border-radius: 0 var(--radius) 0 var(--radius);
+    pointer-events: none;
+  }
+
+  /* ---------- display maths ----------
+     Deliberately NOT the code plate: no chip, serif face, centred, real fraction
+     bars. These are identities, not things you can run. */
+  .eq {
+    margin: 1.8rem 0;
+    padding: 1.5rem 1.15rem 1.3rem;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    text-align: center;
+    overflow-x: auto;
+  }
+  .eq-row {
+    /* block-level flex, not inline-flex: two inline rows would share a line.
+       min-width:max-content keeps a long row from being squeezed, so the
+       parent's overflow-x can scroll it instead. */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: max-content;
+    gap: .45rem;
+    font-family: var(--serif);
+    font-size: 1.14rem;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+  .eq-row + .eq-row { margin-top: 1.15rem; }
+  .eq-var { font-style: italic; }
+  .eq-op { color: var(--muted); }
+  .frac { display: inline-flex; flex-direction: column; text-align: center; }
+  .frac .num { padding: 0 .6rem .2rem; border-bottom: 1.5px solid currentColor; }
+  .frac .den { padding: .2rem .6rem 0; }
+  .eq-note {
+    margin-top: 1.1rem;
+    font-family: var(--mono);
+    font-size: .69rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--faint);
+    line-height: 1.5;
+  }
+  @media (max-width: 30rem) { .eq-row { font-size: 1rem; } }
+
+  /* ---------- key-value lists ---------- */
+  .defs { list-style: none; margin: 1.4rem 0 1.6rem; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; }
+  .defs li { background: var(--surface); padding: .85rem 1.1rem; display: grid; grid-template-columns: 7rem 1fr; gap: .2rem .9rem; align-items: baseline; font-size: var(--fs-small); }
+  .defs .k { font-family: var(--mono); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; }
+  .defs .v { color: var(--muted); line-height: 1.5; }
+  @media (max-width: 30rem) { .defs li { grid-template-columns: 1fr; } .defs .v { grid-column: 1; } }
+
+  /* ---------- tables ---------- */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); margin: 1.6rem 0; }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 24rem; }
+  thead th { text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: .85rem 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2); }
+  tbody td { padding: .9rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.4; overflow-wrap: break-word; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody td:first-child { font-weight: 650; color: var(--ink); font-family: var(--serif); }
+  td.num, th.num { font-family: var(--mono); font-size: .86em; white-space: nowrap; }
+  caption { caption-side: bottom; text-align: left; font-size: .82rem; color: var(--muted); padding: .75rem 1rem 0; font-family: var(--sans); line-height: 1.5; }
+
+  @media (max-width: 34rem) {
+    .tbl-wrap { overflow-x: visible; }
+    tbody, tr, td, caption { display: block; }
+    table { min-width: 0; display: flex; flex-direction: column; }
+    tbody { order: 1; }
+    caption { order: 2; }
+    thead { display: none; }
+    tbody tr { border-bottom: 1px solid var(--hairline); padding: .55rem 0; }
+    tbody tr:last-child { border-bottom: 0; }
+    tbody td { border-bottom: 0; padding: .45rem 1.1rem; }
+    tbody td::before { content: attr(data-label); display: block; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: .15rem; }
+  }
+
+  /* ---------- carry-forward ---------- */
+  .band { background: var(--surface-2); border-block: 1px solid var(--hairline); padding-block: clamp(2rem, 5vw, 3.25rem); margin-top: clamp(1.5rem, 4vw, 2.5rem); }
+  .takes { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; counter-reset: t; }
+  .takes li { background: var(--surface); padding: 1.3rem 1.4rem 1.4rem; display: grid; grid-template-columns: 2.4rem 1fr; gap: .4rem 1rem; align-items: start; counter-increment: t; }
+  .takes li::before { content: counter(t, decimal-leading-zero); font-family: var(--mono); font-size: .8rem; font-weight: 600; color: var(--accent); padding-top: .28rem; letter-spacing: .05em; }
+  .takes h4 { font-family: var(--sans); font-size: 1.06rem; font-weight: 700; letter-spacing: -.01em; margin: .12rem 0 .3rem; color: var(--ink); }
+  .takes p { font-size: var(--fs-small); color: var(--muted); margin: 0; line-height: 1.5; }
+  .takes .body { grid-column: 2; }
+
+  /* ---------- prev / footer ---------- */
+  .nextup { display: block; margin: 2.2rem 0 0; padding: 1.2rem 1.35rem; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius); text-decoration: none; color: inherit; transition: background .15s; }
+  .nextup:hover { background: var(--surface-2); }
+  .nextup .lbl { font-family: var(--mono); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; }
+  .nextup .ttl { display: block; font-family: var(--sans); font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; margin-top: .3rem; color: var(--ink); }
+  .nextup .sub { display: block; font-size: var(--fs-small); color: var(--muted); margin-top: .25rem; line-height: 1.5; }
+
+  footer { border-top: 1px solid var(--hairline); padding-block: 2.5rem 3.5rem; color: var(--muted); }
+  footer p { font-size: var(--fs-small); margin: 0 0 .6rem; }
+  footer .sig { font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+  hr.tick { border: 0; height: 1px; background: var(--hairline); margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+</style>
+<script src="../../../assets/site.js"></script>
+</head>
+<body>
+<div style="border-bottom:1px solid var(--hairline);"><div style="max-width:var(--wide,58rem);margin-inline:auto;padding:.7rem clamp(1.25rem,5vw,2rem);font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;display:flex;justify-content:space-between;gap:1rem;"><a href="../" style="color:var(--muted);text-decoration:none;">&larr; The collection</a><a href="../../../" style="color:var(--muted);text-decoration:none;">yingzhiva.github.io</a></div></div>
+
+<header class="hero">
+  <div class="wide">
+    <div class="kicker">
+      <span class="eyebrow">Field Notes &middot; No. 02 &middot; Modelling</span>
+      <span class="rule"></span>
+    </div>
+    <h1>Stop Tuning, Start Reading</h1>
+    <p class="dek">The model is built and leakage-safe. Now the harder questions: is this score good enough, how do I know when to stop tuning, and what did the thing actually say?</p>
+    <div class="meta">
+      <span>Field note</span>
+      <span>&middot;</span>
+      <span>~6 min read</span>
+      <span>&middot;</span>
+      <span>XGBoost, SHAP</span>
+      <span>&middot;</span>
+      <span>Synthetic data</span>
+    </div>
+
+    <figure aria-label="Diagram comparing two five-fold cross-validation results on an AUC axis. Above, five fold scores cluster tightly around 0.81 within a narrow band, labelled converged: stop tuning. Below, five fold scores scatter widely from about 0.68 to 0.86 around the same mean, labelled unstable: keep tuning. Both rows share the same mean, so only the spread distinguishes them.">
+      <svg viewBox="0 0 660 250" aria-hidden="true" focusable="false">
+        <!-- the shared mean, drawn through both rows: it is the only thing they agree on -->
+        <line class="fd-mean" x1="416" y1="42" x2="416" y2="192" stroke-width="1"/>
+
+        <!-- ============ top: converged ============ -->
+        <text class="fd-head" x="24" y="26">Five fold scores, tightly clustered</text>
+        <text class="fd-verdict-ok" x="636" y="26" text-anchor="end">std 0.005 &middot; at the noise floor</text>
+
+        <rect class="fd-band-ok" x="391" y="47" width="50" height="30" rx="2"/>
+        <line class="fd-axis" x1="24" y1="62" x2="636" y2="62" stroke-width="1"/>
+        <circle class="fd-dot-ok" cx="400" cy="62" r="4.2"/>
+        <circle class="fd-dot-ok" cx="409" cy="62" r="4.2"/>
+        <circle class="fd-dot-ok" cx="416" cy="62" r="4.2"/>
+        <circle class="fd-dot-ok" cx="424" cy="62" r="4.2"/>
+        <circle class="fd-dot-ok" cx="432" cy="62" r="4.2"/>
+        <text class="fd-note" x="24" y="94">No instability left to detect. Further tuning answers a question the data can&rsquo;t hear.</text>
+
+        <line class="fd-axis" x1="24" y1="114" x2="636" y2="114" stroke-width="1"/>
+
+        <!-- ============ bottom: unstable ============ -->
+        <text class="fd-head" x="24" y="140">Same mean, widely scattered</text>
+        <text class="fd-verdict-bad" x="636" y="140" text-anchor="end">std 0.05 &middot; 4&times; the noise floor</text>
+
+        <rect class="fd-band-bad" x="252" y="161" width="328" height="30" rx="2"/>
+        <line class="fd-axis" x1="24" y1="176" x2="636" y2="176" stroke-width="1"/>
+        <circle class="fd-dot-bad" cx="264" cy="176" r="4.2"/>
+        <circle class="fd-dot-bad" cx="338" cy="176" r="4.2"/>
+        <circle class="fd-dot-bad" cx="416" cy="176" r="4.2"/>
+        <circle class="fd-dot-bad" cx="494" cy="176" r="4.2"/>
+        <circle class="fd-dot-bad" cx="568" cy="176" r="4.2"/>
+        <text class="fd-note" x="24" y="208">The model is sensitive to which rows land in which fold. Don&rsquo;t trust its SHAP values yet.</text>
+
+        <!-- shared axis ticks -->
+        <text class="fd-tick" x="24" y="238">0.60</text>
+        <text class="fd-tick" x="416" y="238" text-anchor="middle">mean AUC</text>
+        <text class="fd-tick" x="636" y="238" text-anchor="end">0.90</text>
+      </svg>
+      <figcaption>Two cross-validations with the same mean AUC. The spread, not the average, is what tells you whether you are finished, and it only means something once you know how wide the sampling noise alone would make it.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+
+    <section>
+      <div class="callout">
+        <span class="tag">Where we are</span>
+        <p>This picks up from <a href="../encoder-first/">No. 01</a>, where the target imbalance was handled with <code>scale_pos_weight</code>, the high-cardinality categoricals were Weight-of-Evidence encoded, and encoder and model were wrapped in one <code>Pipeline</code> so nothing leaks across folds.</p>
+        <p>The scope note from there still applies, and matters even more here: the goal of this model is not to predict but to understand feature importance.</p>
+      </div>
+      <p class="lead drop">Everything up to this point had a right answer. Handle the imbalance or don&rsquo;t; put the encoder inside the pipeline or leak. What came next had no such comfort: nobody tells you when a model is finished. The score is a number without a scale, and the temptation is to keep turning knobs until it stops moving, which can take a very long time and, as it turns out, would have taught me nothing.</p>
+    </section>
+
+    <hr class="tick" />
+
+    <section>
+      <span class="snum">01 &middot; The knobs</span>
+      <h2>Model Hyperparameter Tuning</h2>
+      <p>The grid search settled at a cross-validated <strong>ROC-AUC of 0.811</strong>, and the refit pipeline scored <strong>0.798 on the held-out test set</strong>. Is that good enough? Shall I try to squeeze it higher?</p>
+      <p>A naive baseline would score 0.5, and production-grade models in domains like credit risk or customer behaviour typically land between 0.70 and 0.85. Scores above 0.85 on messy, self-reported behavioural data would actually warrant some suspicion: it could indicate leakage or overfitting rather than genuine signal. So 0.80 sits comfortably inside the band where I&rsquo;d expect an honest model on this kind of data to land, and the close agreement between the cross-validated and held-out figures is the more reassuring number of the two.</p>
+
+      <div class="tbl-wrap" role="region" aria-label="Model scores on the synthetic run">
+        <table>
+          <caption>Scores from the synthetic run. Ranking metrics come from predicted probabilities; the threshold metrics from hard labels at the default 0.5 cut-off.</caption>
+          <thead>
+            <tr><th scope="col">Measure</th><th scope="col" class="num">Value</th><th scope="col">Reads as</th></tr>
+          </thead>
+          <tbody>
+            <tr><td data-label="Measure">CV ROC-AUC</td><td class="num" data-label="Value">0.811</td><td data-label="Reads as">Mean over five stratified folds</td></tr>
+            <tr><td data-label="Measure">Fold std</td><td class="num" data-label="Value">0.005</td><td data-label="Reads as">At the sampling-noise floor; no instability detectable</td></tr>
+            <tr><td data-label="Measure">Test ROC-AUC</td><td class="num" data-label="Value">0.798</td><td data-label="Reads as">Held out, close to CV; no overfit</td></tr>
+            <tr><td data-label="Measure">Test recall</td><td class="num" data-label="Value">0.710</td><td data-label="Reads as">Catches seven referrers in ten</td></tr>
+            <tr><td data-label="Measure">Test precision</td><td class="num" data-label="Value">0.356</td><td data-label="Reads as">Two-thirds of flags are wrong</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>When the primary goal is prediction, squeezing AUC from 0.80 to 0.84 might matter meaningfully. When the primary goal is understanding feature importance, the additional tuning effort has diminishing returns.</p>
+      <p>SHAP values are relatively stable once the model has learned a reasonable representation of the data. The rank ordering of feature importances (which features matter most, which direction they push predictions) tends to stabilise well before AUC is maximised. A model at 0.80 and a model at 0.84 on the same dataset will typically tell you the same story about which features drive the outcome.</p>
+
+      <blockquote>The feature ranking settles long before the score does.</blockquote>
+
+      <h3>When it would be worth tuning further</h3>
+      <p>If the CV AUC across folds has high variance, that instability suggests the model hasn&rsquo;t converged on a stable representation, and more tuning or more data could help. But if the folds are reasonably consistent around 0.80, the model is stable and further tuning is unlikely to change your feature importance conclusions.</p>
+      <p>The following code assesses the standard deviation of AUC scores across folds:</p>
+
+      <div class="code"><span class="lang">python</span><pre><code># Full CV results as a DataFrame
+cv_results = pd.DataFrame(grid_search.cv_results_)
+
+# Get fold scores for the best parameter combination
+best_index = grid_search.best_index_
+
+# A std below 0.03 suggests stable, consistent performance across folds,
+# thus a converging model.
+print(f"\nMean AUC:  {cv_results.loc[best_index, 'mean_test_score']:.4f}")
+print(f"Std AUC:   {cv_results.loc[best_index, 'std_test_score']:.4f}")</code></pre></div>
+
+      <p>Mine came back at <strong>0.005</strong> against a mean of 0.811, with the five folds agreeing to within half a percentage point. My first instinct was to compare that against a threshold: under 0.03, call it stable. I should be honest that I picked 0.03 out of the air. There is no consensus figure for this in the literature, and there cannot be, because fold spread is not dimensionless. It depends on how many rows land in each validation fold and how rare the positive class is. A std of 0.03 on 300-row folds and 0.03 on 30,000-row folds mean opposite things.</p>
+
+      <p>The better question is scale-free: <strong>how much spread would I expect from sampling noise alone, even from a perfectly stable model?</strong> For AUC that has a closed-form answer. The <a href="https://pubs.rsna.org/doi/10.1148/radiology.143.1.7063747" target="_blank" rel="noopener">Hanley&ndash;McNeil</a> standard error takes the AUC and the two class counts and returns the standard error you&rsquo;d get purely from having a finite sample. Because AUC is estimated from positive&ndash;negative pairs, it is governed by whichever class is scarcer.</p>
+
+      <div class="tbl-wrap" role="region" aria-label="Observed fold spread compared against expected sampling noise">
+        <table>
+          <caption>The comparison that replaced my invented threshold. Fold composition follows from 18,982 rows at 17.2% positive, an 80/20 split, and five stratified folds.</caption>
+          <thead>
+            <tr><th scope="col">Quantity</th><th scope="col" class="num">Value</th><th scope="col">Where it comes from</th></tr>
+          </thead>
+          <tbody>
+            <tr><td data-label="Quantity">Rows per validation fold</td><td class="num" data-label="Value">~3,037</td><td data-label="Where it comes from">Of which ~523 positive, ~2,514 negative</td></tr>
+            <tr><td data-label="Quantity">Expected SE per fold</td><td class="num" data-label="Value">~0.012</td><td data-label="Where it comes from">Hanley&ndash;McNeil at AUC 0.811 and those counts</td></tr>
+            <tr><td data-label="Quantity">Observed fold std</td><td class="num" data-label="Value">0.005</td><td data-label="Where it comes from">The number the code above prints</td></tr>
+            <tr><td data-label="Quantity">95% interval for the true &sigma;</td><td class="num" data-label="Value">0.003 &ndash; 0.014</td><td data-label="Where it comes from">What five observations can pin down, no more</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Which is a more interesting result than my threshold would have given me, and less flattering. The observed spread is not comfortably under some limit: it sits <em>at or below the noise floor</em>. There is no room left for instability to show up in this measurement, so the honest reading is not &ldquo;the model has converged&rdquo; but &ldquo;whatever instability exists is smaller than what five folds of this size can resolve.&rdquo;</p>
+
+      <p>The last row is the part I&rsquo;d missed entirely. A standard deviation computed from five numbers is a poor estimate of anything: the 95% interval runs from roughly 0.6&times; to 2.9&times; the value you observed. So my data cannot distinguish 0.005 from 0.014, and a test that cuts at 0.03 was only ever going to catch gross instability. It is a smoke alarm, not a thermometer.</p>
+
+      <blockquote>Compare the spread against the noise you&rsquo;d get anyway, not against a number you made up.</blockquote>
+
+      <p>The decision to stop tuning was still the right one. But the evidence for it is &ldquo;no detectable instability,&rdquo; which is a weaker and more honest claim than &ldquo;proven convergence.&rdquo; And it is evidence about the wrong quantity: what I actually wanted to know was whether the <em>feature ranking</em> holds, and AUC spread is only a proxy for that. Refitting across repeated splits and measuring the rank agreement of the SHAP importances directly would settle it properly. That is the next thing I&rsquo;d do to this notebook.</p>
+    </section>
+
+    <hr class="tick" />
+
+    <section>
+      <span class="snum">02 &middot; The payoff</span>
+      <h2>Model Interpretation Using SHAP</h2>
+
+      <h3>How SHAP values are computed</h3>
+      <p>The underlying concept comes from cooperative game theory, specifically Shapley values. The intuition is:</p>
+
+      <blockquote>For each observation, SHAP asks: how much did each feature contribute to pushing this prediction away from the baseline?</blockquote>
+
+      <p>The <em>definition</em> is combinatorial: consider every possible subset of features, compute the model&rsquo;s prediction with and without each feature across all subsets, and average each feature&rsquo;s marginal contribution over all those combinations. That averaging is what buys the fair-allocation properties: the contributions sum exactly to the difference between the prediction and the baseline, no feature is double-counted, and features with no effect get zero attribution.</p>
+      <p>Taken literally that is 2<sup>M</sup> evaluations for M features, which is hopeless past a handful of columns. So it is worth being clear that the definition is not the algorithm. The code below calls <code>shap.TreeExplainer</code>, which for tree ensembles uses <strong>TreeSHAP</strong>: it arrives at the same values without ever enumerating the subsets, exploiting the structure of the trees to push all subsets down the branches simultaneously and bringing the cost down to roughly trees &times; leaves &times; depth&sup2;. The combinatorial story is what a SHAP value <em>means</em>; TreeSHAP is how you actually get one out of XGBoost.</p>
+
+      <div class="callout">
+        <span class="tag">Worth knowing</span>
+        <p>Called as <code>shap.TreeExplainer(model)</code> with no background dataset, TreeSHAP defaults to <code>feature_perturbation="tree_path_dependent"</code>: the reference distribution is the training coverage already recorded in the trees. The values are exact for <em>that</em> expectation. Pass a background dataset if you want the interventional one instead; the two can disagree when features are correlated.</p>
+      </div>
+
+      <p>Either way, for a single observation the guarantee holds:</p>
+
+      <div class="eq">
+        <div class="eq-row">
+          <span>baseline</span>
+          <span class="eq-op">+</span>
+          <span>&sum; SHAP values</span>
+          <span class="eq-op">=</span>
+          <span>model output</span>
+        </div>
+        <div class="eq-row">
+          <span class="eq-var">log-odds</span>
+          <span class="eq-op">=</span>
+          <span>ln</span>
+          <span class="frac">
+            <span class="num"><span class="eq-var">p</span></span>
+            <span class="den">1 &minus; <span class="eq-var">p</span></span>
+          </span>
+        </div>
+        <div class="eq-note">The model output is in log-odds, not probability</div>
+      </div>
+
+      <h3>Use SHAP with an XGBoost model</h3>
+      <p>The code example below uses SHAP to explain a model coming out of a pipeline. Note that some features are encoded in the pipeline instead of directly modified in the DataFrame, therefore we need to transform <code>X</code> to get the encoded feature matrix the model actually trained on.</p>
+
+      <div class="code"><span class="lang">python</span><pre><code># Extract the fitted model from the best pipeline
+best_model = grid_search.best_estimator_.named_steps['model']
+# Transform all instances to get the
+# encoded feature matrix the model actually trained on
+X_transformed = grid_search.best_estimator_.named_steps['woe'].transform(X)
+
+explainer = shap.TreeExplainer(best_model)
+shap_values = explainer.shap_values(X_transformed)
+
+shap.summary_plot(shap_values, X_transformed, max_display = 30)</code></pre></div>
+
+      <h3>How to interpret the SHAP summary plot</h3>
+
+      <figure class="shot">
+        <div class="plate">
+          <img src="shap-summary.png" width="765" height="620" alt="SHAP beeswarm summary plot with 18 features on the vertical axis, ordered from most to least total impact: account_age, kyc_net_worth, risk_knowledge&amp;Exp, kyc_birth_year, was_referred_bin, kyc_employer_industry, kyc_nationality, and eleven progressively narrower rows below. The horizontal axis is the SHAP value, running from about minus 2 to plus 2. Each row is a horizontal swarm of dots coloured blue for low feature values and magenta for high ones; the top rows spread wide across the axis while the bottom rows collapse towards zero.">
+        </div>
+        <figcaption>My own summary plot from the referral model, on the synthetic dataset. Full notebook in the <a href="https://github.com/YingzhiVA/Referral_Analytics" target="_blank" rel="noopener">Referral&nbsp;Analytics repo</a>.</figcaption>
+      </figure>
+
+      <p>Features are sorted from top to bottom by the sum of the SHAP value magnitudes across all samples. Each dot represents an observation of a corresponding feature, stacked vertically when they share similar SHAP values to show density. The colour of each dot represents the feature value of that observation.</p>
+
+      <ul class="defs">
+        <li><span class="k">Row order</span><span class="v">Total impact on the model, summed over every observation. Top row matters most overall.</span></li>
+        <li><span class="k">One dot</span><span class="v">One observation. Vertical stacking is density, not a second axis.</span></li>
+        <li><span class="k">Horizontal</span><span class="v">The SHAP value: how far, and in which direction, that feature pushed that prediction.</span></li>
+        <li><span class="k">Colour</span><span class="v">The feature&rsquo;s own value for that observation, low to high.</span></li>
+      </ul>
+
+      <p>In this example the <code>kyc_employer_industry</code> feature has more total model impact than <code>kyc_nationality</code>, but for those samples where nationality matters it has more impact than employer industry. In other words, nationality affects a few predictions by a large amount, while employer industry affects many predictions by a smaller amount.</p>
+
+      <h4>What it actually said</h4>
+      <p>Read top to bottom, the ranking on the synthetic run is tenure (<code>account_age</code>), then net worth, then self-reported financial knowledge, then age, then whether the client had themselves been referred. Everything below that collapses towards zero and is noise as far as I&rsquo;m concerned.</p>
+      <p>The directions are the intuitive ones: longer-tenured, wealthier and more financially confident clients refer more. Age needs one moment of care, because the feature is <code>kyc_birth_year</code> and so runs backwards: the high (magenta) values sit on the negative side, meaning the <em>younger</em> clients push the prediction down, and it is the older ones who refer. Exactly the kind of sign flip that a WoE-encoded or raw numeric column will happily hand you if you read the colour axis without checking what the feature actually counts.</p>
+      <p>The one I found most satisfying is <code>was_referred_bin</code> sitting fifth. Referred clients go on to refer, which is the same &ldquo;pay it forward&rdquo; effect the two-proportion z-test had already found earlier in the notebook, arrived at by a completely independent route. When a hypothesis test and a tree ensemble agree on something, that is a good deal more convincing than either on its own.</p>
+    </section>
+
+  </div>
+
+  <div class="band">
+    <div class="col" style="padding-top:0;padding-bottom:0;">
+      <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
+      <h2 style="margin-bottom:1.6rem;">What I&rsquo;d bring to the next model</h2>
+    </div>
+    <div class="col">
+      <ol class="takes">
+        <li><div class="body"><h4>Read the fold spread before chasing the mean</h4><p>Two cross-validations with the same average can mean completely different things; only the spread distinguishes them.</p></div></li>
+        <li><div class="body"><h4>Compare the spread against the noise floor, not a made-up threshold</h4><p>Fold std isn&rsquo;t dimensionless: it scales with fold size and class balance, so no portable cutoff exists. Work out the sampling error you&rsquo;d get from a perfectly stable model and compare against that.</p></div></li>
+        <li><div class="body"><h4>Five folds barely estimate a standard deviation</h4><p>The 95% interval on &sigma; from five observations spans 0.6&times; to 2.9&times; what you measured. Treat the check as a smoke alarm for gross instability, not a precision instrument.</p></div></li>
+        <li><div class="body"><h4>Let the goal set the stopping rule</h4><p>For prediction, chase the score. For interpretation, stop when the feature ranking stabilises, which happens well before the metric peaks. Know which job you are doing.</p></div></li>
+        <li><div class="body"><h4>Be suspicious of a good score</h4><p>Above 0.85 on messy behavioural data is a reason to go hunting for leakage, not to celebrate. A boring number that agrees across CV and hold-out beats an impressive one that doesn&rsquo;t.</p></div></li>
+        <li><div class="body"><h4>Check what the feature counts before reading direction</h4><p><code>kyc_birth_year</code> runs backwards, so &ldquo;high value&rdquo; on the colour axis means <em>younger</em>. The plot will not warn you; only knowing your columns will.</p></div></li>
+        <li><div class="body"><h4>Know the difference between a definition and an algorithm</h4><p>SHAP is defined over every subset of features; TreeSHAP computes it without enumerating any. Confusing the two makes you think the code is doing something it isn&rsquo;t.</p></div></li>
+        <li><div class="body"><h4>Corroborate across methods</h4><p>A hypothesis test and a tree ensemble independently agreeing on the &ldquo;pay it forward&rdquo; effect was worth more than either result alone. Look for the second route to the same finding.</p></div></li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>
+    <div class="col">
+      <a class="nextup" href="../encoder-first/">
+        <span class="lbl">Previously &middot; No. 01</span>
+        <span class="ttl">&larr; Never Fit the Encoder First</span>
+        <span class="sub">The imbalanced target, Weight-of-Evidence encoding for high-cardinality categoricals, and the leakage trap a Pipeline exists to prevent.</span>
+      </a>
+      <p style="margin-top:1.6rem;">The full notebook lives in the <a href="https://github.com/YingzhiVA/Referral_Analytics" target="_blank" rel="noopener">Referral Analytics repo</a>: cascade graph, two-proportion z-test, WoE pipeline and SHAP interpretation, all on a synthetic dataset that reproduces the schema and distributions of the original exports.</p>
+      <p class="sig">Field notes &middot; No. 02 &middot; synthetic data &middot; public repo</p>
+    </div>
+  </footer>
+</main>
+
+</body>
+</html>

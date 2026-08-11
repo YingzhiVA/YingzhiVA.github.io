@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelling Who Refers · Field Notes</title>
+<meta name="description" content="Field notes from the referral analytics project: taking an XGBoost model from certificate exercises to a real use case, built to be explained rather than to predict.">
+<meta name="author" content="Yingzhi Vilimelis Aceituno">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Modelling Who Refers · Field Notes">
+<meta property="og:description" content="Field notes from the referral analytics project: an XGBoost model built to be explained rather than to predict.">
+<meta property="og:url" content="https://yingzhiva.github.io/notes/referral-analytics/">
+<meta property="og:image" content="https://yingzhiva.github.io/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237b3fa0'/><text x='50' y='73' font-size='58' font-family='Georgia,serif' fill='white' text-anchor='middle'>◈</text></svg>">
+<script src="../../assets/site.js"></script>
+<style>
+  :root{
+    --ground:#f1eff4; --surface:#fbfafc; --surface-2:#e9e6ee;
+    --ink:#201a2b; --muted:#5f5670; --faint:#8d84a0; --hairline:#dcd7e3;
+    --accent:#7b3fa0; --accent-ink:#5f2e7d; --low:#1a6fc4; --high:#c62258;
+    --serif:"Charter","Bitstream Charter","Iowan Old Style","Palatino Linotype",Georgia,ui-serif,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+    --col:46rem;  /* same measure as the notes, so the edges hold when you click through */
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --ground:#12101a; --surface:#1b1826; --surface-2:#211d2e;
+      --ink:#e3dfea; --muted:#9d94ad; --faint:#6f6683; --hairline:#2f2a3d;
+      --accent:#b382d6; --accent-ink:#cba6e6; --low:#5aa9ea; --high:#ef6f96; }
+  }
+  :root[data-theme="light"]{ --ground:#f1eff4; --surface:#fbfafc; --surface-2:#e9e6ee;
+    --ink:#201a2b; --muted:#5f5670; --faint:#8d84a0; --hairline:#dcd7e3;
+    --accent:#7b3fa0; --accent-ink:#5f2e7d; --low:#1a6fc4; --high:#c62258; }
+  :root[data-theme="dark"]{ --ground:#12101a; --surface:#1b1826; --surface-2:#211d2e;
+    --ink:#e3dfea; --muted:#9d94ad; --faint:#6f6683; --hairline:#2f2a3d;
+    --accent:#b382d6; --accent-ink:#cba6e6; --low:#5aa9ea; --high:#ef6f96; }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--serif);line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:var(--col);margin-inline:auto;padding-inline:clamp(1.25rem,5vw,2rem);}
+  a{color:var(--accent-ink);}
+
+  .topbar{border-bottom:1px solid var(--hairline);}
+  .topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:52px;font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;}
+  .topbar a{color:var(--muted);text-decoration:none;}
+  .topbar a:hover{color:var(--ink);}
+
+  header.hero{padding-block:clamp(2.75rem,7vw,4.5rem) clamp(1.5rem,4vw,2.5rem);border-bottom:1px solid var(--hairline);}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--accent-ink);font-weight:600;}
+  h1{font-family:var(--sans);font-weight:800;font-size:clamp(2.2rem,1.5rem+3.4vw,3.6rem);line-height:1.03;letter-spacing:-.028em;margin:1.2rem 0 .8rem;text-wrap:balance;}
+  .dek{font-size:clamp(1.05rem,.95rem+.6vw,1.28rem);color:var(--muted);line-height:1.5;max-width:34rem;margin:0;text-wrap:pretty;}
+
+  main{padding-block:clamp(1.5rem,4vw,2.5rem) 1rem;}
+  ol.toc{list-style:none;margin:0;padding:0;display:grid;gap:1px;background:var(--hairline);border:1px solid var(--hairline);border-radius:5px;overflow:hidden;}
+  ol.toc li{background:var(--surface);}
+  ol.toc a{display:grid;grid-template-columns:3rem 1fr auto;gap:.4rem 1.1rem;align-items:start;padding:1.3rem 1.35rem;text-decoration:none;color:inherit;transition:background .15s;}
+  ol.toc a:hover{background:var(--surface-2);}
+  .n{font-family:var(--mono);font-size:.82rem;font-weight:600;color:var(--accent);padding-top:.25rem;letter-spacing:.04em;}
+  .t{grid-column:2;}
+  .t h2{font-family:var(--sans);font-size:1.12rem;font-weight:700;letter-spacing:-.01em;margin:.1rem 0 .35rem;color:var(--ink);}
+  .t p{margin:0;font-size:.95rem;color:var(--muted);line-height:1.5;}
+  .go{grid-column:3;align-self:center;font-family:var(--mono);font-size:.95rem;color:var(--accent-ink);}
+
+  .note{margin:1.6rem 0 0;font-size:.95rem;color:var(--muted);}
+  footer{border-top:1px solid var(--hairline);margin-top:2.5rem;padding-block:2rem 3rem;color:var(--muted);font-size:.92rem;}
+  footer .sig{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-top:.6rem;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <a href="../">&larr; Field notes</a>
+    <a href="../../">yingzhiva.github.io</a>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Field Notes &middot; A Collection</div>
+    <h1>Modelling Who Refers</h1>
+    <p class="dek">Notes from the referral analytics project: a customer referral programme at a digital wealth manager, and an XGBoost model built to be <em>explained</em> rather than to predict. The gap between certificate exercises and a real use case, one obstacle at a time.</p>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <ol class="toc">
+      <li><a href="encoder-first/">
+        <span class="n">01</span>
+        <span class="t"><h2>Never Fit the Encoder First</h2><p>Getting real data into the model without fooling yourself: class imbalance without reaching for resampling, Weight-of-Evidence encoding for high-cardinality categoricals, and the target leakage a pipeline exists to prevent.</p></span>
+        <span class="go">→</span>
+      </a></li>
+      <li><a href="stop-tuning/">
+        <span class="n">02</span>
+        <span class="t"><h2>Stop Tuning, Start Reading</h2><p>Deciding the model is finished and reading what it says: how to judge an AUC, why the fold spread answers &ldquo;keep tuning?&rdquo; better than the mean, and how to interpret a SHAP summary plot.</p></span>
+        <span class="go">→</span>
+      </a></li>
+    </ol>
+    <p class="note">They read in order: No. 01 builds a model you can trust, No. 02 decides it&rsquo;s done and reads it, but each stands on its own. The code behind both is public: the <a href="https://github.com/YingzhiVA/Referral_Analytics" target="_blank" rel="noopener">Referral Analytics repo</a> holds the full notebook, running on a synthetic dataset that reproduces the schema and distributions of the original data-warehouse exports. No real customer data.</p>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    Part of the <a href="../">field notes</a> at <a href="../../">yingzhiva.github.io</a>.
+    <div class="sig">Synthetic data &middot; public repo</div>
+  </div>
+</footer>
+
+</body>
+</html>
