@@ -122,7 +122,7 @@
       <span class="rule"></span>
     </div>
     <h1>Never Let the Model Type a Number</h1>
-    <p class="dek">The final deliverable is a polished document full of exact figures &mdash; which makes it the last place you want a language model at the keyboard. So it never is: the code renders every number and table; the model fills only the prose.</p>
+    <p class="dek">The final deliverable is a polished document full of exact figures, which makes it the last place you want a language model at the keyboard. So it never is: the code renders every number and table; the model fills only the prose.</p>
     <div class="meta">
       <span>Field note</span><span>&middot;</span><span>~6 min read</span><span>&middot;</span><span>Details generalized</span>
     </div>
@@ -140,7 +140,7 @@
   <div class="col">
 
     <section>
-      <p class="lead drop">The last thing the pipeline produces is a client-ready report: pages of exact figures, dates, and tables, every cell of which has to be right. That makes it the single worst place to hand a language model a keyboard. Ask a model to render a table of numbers and it will &mdash; most of the time. Then, on some run, it transposes a digit, rounds one total differently, or helpfully "corrects" a figure that was already correct. So in this pipeline the model never types a number at all.</p>
+      <p class="lead drop">The last thing the pipeline produces is a client-ready report: pages of exact figures, dates, and tables, every cell of which has to be right. That makes it the single worst place to hand a language model a keyboard. Ask a model to render a table of numbers and it will, most of the time. Then, on some run, it transposes a digit, rounds one total differently, or helpfully "corrects" a figure that was already correct. So in this pipeline the model never types a number at all.</p>
     </section>
 
     <hr class="tick" />
@@ -148,7 +148,7 @@
     <section>
       <span class="snum">01 &middot; The split</span>
       <h2>The document is assembled in two layers</h2>
-      <p>A deterministic renderer builds the entire report skeleton first: every table, every date, every figure, fully populated and arithmetic-correct &mdash; with <em class="term">&lt;!-- NARRATIVE --&gt;</em> markers left wherever prose belongs. Only then does the model step in, and its whole job is to fill those markers with sentences. It reads finished numbers and writes <em>about</em> them; it never authors them.</p>
+      <p>A deterministic renderer builds the entire report skeleton first: every table, every date, every figure, fully populated and arithmetic-correct, with <em class="term">&lt;!-- NARRATIVE --&gt;</em> markers left wherever prose belongs. Only then does the model step in, and its whole job is to fill those markers with sentences. It reads finished numbers and writes <em>about</em> them; it never authors them.</p>
 
       <div class="code" role="img" aria-label="A rendered report skeleton: the heading and table are produced by code; a NARRATIVE marker is the only place the model writes.">
 <pre><span class="fixed">## §2  Plan at a glance</span>                       <span class="cm">&larr; heading: rendered</span>
@@ -158,30 +158,30 @@
 <span class="mark">&lt;!-- NARRATIVE: plan_summary --&gt;</span>              <span class="note">&larr; the model writes ONLY here</span></pre>
       </div>
 
-      <p>The boundary isn't a suggestion, it's a wall. The agent is told, in as many words, not to re-type any table, not to write a helper script to fill the markers, not to post-process the numbers &mdash; only to replace each marker with prose, in place. Everything numeric is upstream of the model's reach by the time it arrives.</p>
+      <p>The boundary isn't a suggestion, it's a wall. The agent is told, in as many words, not to re-type any table, not to write a helper script to fill the markers, not to post-process the numbers, only to replace each marker with prose, in place. Everything numeric is upstream of the model's reach by the time it arrives.</p>
       <blockquote>The model writes about the numbers. It never writes the numbers.</blockquote>
     </section>
 
     <section>
       <span class="snum">02 &middot; Why the wall</span>
       <h2>A wrong number that looks right is the worst kind</h2>
-      <p>Two reasons the model doesn't get to transcribe. The first is arithmetic: a renderer computes a total once, correctly, from the same tested functions as everything upstream &mdash; whereas a model retyping that total is a fresh chance to be wrong on every run. And the failure it produces is the most expensive one there is: not a crash, not a blank, but a plausible figure that's quietly off by a digit and sails straight past the eye.</p>
-      <p>The second is that the renderer is <em>more</em> right than the model, not just more consistent. Because the numbers flow from the pipeline's own computation layer, the skeleton is correct by construction &mdash; it even fixes arithmetic the model would have fumbled if asked. Letting the model retype a value doesn't just risk an error; it throws away a guarantee you already paid for.</p>
-      <blockquote>A wrong number that looks right is the most expensive kind &mdash; it survives review.</blockquote>
+      <p>Two reasons the model doesn't get to transcribe. The first is arithmetic: a renderer computes a total once from the same tested functions as everything upstream, whereas a model retyping that total is a fresh chance to be wrong on every run. And the failure it produces is the most expensive one there is: not a crash, not a blank, but a plausible figure that's quietly off by a digit and sails straight past the eye.</p>
+      <p>The second is that the renderer is <em>more</em> right than the model, not just more consistent. Because the numbers flow from the pipeline's own computation layer, it even fixes arithmetic the model would have fumbled if asked. Letting the model retype a value doesn't just risk an error; it throws away a guarantee you already paid for.</p>
+      <blockquote>A wrong number that looks right is the most expensive kind. It survives review.</blockquote>
     </section>
 
     <section>
       <span class="snum">03 &middot; The right division of labor</span>
       <h2>Give each half the job it's actually good at</h2>
-      <p>None of this is distrust for its own sake. It's routing each half of the document to the tool suited to it. The numbers want determinism, and code delivers it flawlessly. The narrative wants judgment &mdash; which of the client's questions to answer first, how to explain sequence-of-returns risk in plain language, what to flag as worth a human conversation &mdash; and that is exactly what a language model is good at and what code cannot do at all.</p>
-      <p>Split the document along that line and each side plays to its strength: the prose reads like a person wrote it, because one did; the figures are exact, because a function produced them. It's the same principle as the harness note &mdash; the model decides, the code computes &mdash; carried all the way out to the last rendered cell. Inside the pipeline, keep the math in code. On the way out the door, keep it there too.</p>
+      <p>None of this is distrust for its own sake. It's routing each half of the document to the tool suited to it. The numbers want determinism, and code delivers it flawlessly. The narrative wants judgment: which of the client's questions to answer first, how to explain sequence-of-returns risk in plain language, what to flag as worth a human conversation, and that is exactly what a language model is good at and what code cannot do at all.</p>
+      <p>Split the document along that line and each side plays to its strength: the prose reads like a person wrote it; the figures are exact, because a function produced them. It's the same principle as the harness note: the model decides, the code computes, carried all the way out to the last rendered cell.</p>
       <blockquote>The polish is the model's. The truth is the code's.</blockquote>
     </section>
 
     <section>
       <span class="snum">04 &middot; The generalization</span>
       <h2>Any document that mixes data with explanation</h2>
-      <p>This isn't specific to reports or to finance. Any time you have an LLM produce a document that interleaves exact data with prose about it &mdash; an invoice with a note, a dashboard with commentary, a summary citing figures &mdash; the same split applies. Render the data deterministically, leave marked slots for the language, and make the seam between them a hard wall rather than a hope. The reader gets one voice; underneath, it was always two.</p>
+      <p>This isn't specific to reports or to finance. Any time you have an LLM produce a document that interleaves exact data with prose about it, be it an invoice with a note, a dashboard with commentary, a summary citing figures, the same split applies. Render the data deterministically, leave marked slots for the language, and make the seam between them a hard wall rather than a hope. The reader gets one voice; underneath, it was always two.</p>
     </section>
 
   </div>
@@ -197,15 +197,15 @@
         <li><div class="body"><h4>Never let the model transcribe a value</h4><p>Retyping a number is a fresh chance to be wrong on every run. The model writes about the numbers; it doesn't write them.</p></div></li>
         <li><div class="body"><h4>Fear the plausible wrong number most</h4><p>A figure that's quietly off by a digit passes review in a way a crash never would. Determinism at the source is what keeps it from ever forming.</p></div></li>
         <li><div class="body"><h4>Render from the same functions as the pipeline</h4><p>When the report's numbers come from the computation layer, the document is correct by construction and agrees with everything upstream, end to end.</p></div></li>
-        <li><div class="body"><h4>Make the boundary a hard wall</h4><p>Forbid the model from re-typing tables, scripting the fill, or post-processing the numbers. A stated rule beats a hopeful one; enforce the seam.</p></div></li>
-        <li><div class="body"><h4>Give each half its strength</h4><p>Determinism and exactness to the code; judgment and plain language to the model. The split isn't distrust &mdash; it's fit.</p></div></li>
+        <li><div class="body"><h4>Make the boundary a hard wall</h4><p>Forbid the model from re-typing tables, scripting the fill, or post-processing the numbers.</p></div></li>
+        <li><div class="body"><h4>Give each half its strength</h4><p>Determinism and exactness to the code; judgment and plain language to the model. The split isn't distrust, it's fit.</p></div></li>
       </ol>
     </div>
   </div>
 
   <footer>
     <div class="col">
-      <p>A good report reads like a single voice, but it's two: a printing press that never makes a typo, and a writer who never does arithmetic. Keep each to its lane and the reader gets both at once &mdash; numbers they can trust, and prose they'll actually read. The trick is refusing to let either one do the other's job.</p>
+      <p>A good report reads like a single voice, but it's two: a printing press that never makes a typo, and a writer who never does arithmetic. Keep each to its lane and the reader gets both at once: numbers they can trust, and prose they'll actually read. The trick is refusing to let either one do the other's job.</p>
       <p class="sig">Field notes &middot; No. 03 &middot; built pair-programming with Claude Code &middot; details generalized</p>
     </div>
   </footer>

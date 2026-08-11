@@ -145,7 +145,7 @@
       <span class="rule"></span>
     </div>
     <h1>Say It Once</h1>
-    <p class="dek">The same fact copied into three places isn't redundancy &mdash; it's a future contradiction. A note on giving every fact exactly one home: in the code, the prompt, or the knowledge file, and never more than one.</p>
+    <p class="dek">The same fact copied into three places isn't redundancy, it's a future contradiction. A note on giving every fact exactly one home: in the code, the prompt, or the knowledge file, and never more than one.</p>
     <div class="meta">
       <span>Field note</span><span>&middot;</span><span>~6 min read</span><span>&middot;</span><span>Details generalized</span>
     </div>
@@ -154,7 +154,7 @@
       <div class="plot">
         <canvas id="dedup" width="1160" height="420"></canvas>
       </div>
-      <figcaption>The same value in three homes. Edit one and the others go stale &mdash; until the copies collapse into a single source the rest just point to.</figcaption>
+      <figcaption>The same value in three homes. Edit one and the others go stale, until the copies collapse into a single source the rest just point to.</figcaption>
     </figure>
   </div>
 </header>
@@ -163,7 +163,7 @@
   <div class="col">
 
     <section>
-      <p class="lead drop">In the last note I said a tested function was "one place you can read, test, and fix," and slid right past it. That parenthetical was hiding a whole discipline of its own. Building this system, information could live in three kinds of places &mdash; in the code, in the agent's prompt, or in a knowledge file the agent reads &mdash; and the single most durable habit I formed was refusing to let the same fact live in more than one of them.</p>
+      <p class="lead drop">In the last note I said a tested function was "one place you can read, test, and fix." That sentence was hiding a whole discipline of its own. Building this system, information could live in three kinds of places: in the code, in the agent's prompt, or in a knowledge file the agent reads. The single most durable habit I formed was not letting the same fact live in more than one of them.</p>
     </section>
 
     <hr class="tick" />
@@ -171,9 +171,9 @@
     <section>
       <span class="snum">01 &middot; The failure mode</span>
       <h2>Two copies of a fact are a contradiction waiting to happen</h2>
-      <p>Duplication feels harmless when you write it &mdash; you're just being helpful, restating a rule where it's convenient. The rot shows up later, on the day someone edits one copy and not the other. Now the system quietly disagrees with itself, and nothing complains: both versions are individually valid, so no schema catches it and no test fails. It's the same slow divergence a drift eval exists to catch, except self-inflicted &mdash; two copies of a truth, pulling apart, until one run trusts the stale one.</p>
+      <p>Duplication feels harmless when you write it. You're just being helpful, restating a rule where it's convenient. The rot shows up later, on the day someone edits one copy and not the other. Now the system quietly disagrees with itself, and nothing complains: both versions are individually valid, so no schema catches it and no test fails. It's the same slow divergence a drift eval exists to catch, except self-inflicted.</p>
       <blockquote>Duplicated facts don't stay redundant. They wait for one edit and become a contradiction.</blockquote>
-      <p>And even before anything goes stale, every duplicate costs you twice more. It <strong>bloats the context</strong> &mdash; the agent spends attention re-reading what it already knew, and signal drowns in the repetition. And it <strong>bloats the bill</strong> &mdash; you ship those redundant tokens into the model on every single run, forever, for nothing.</p>
+      <p>And even before anything goes stale, every duplicate costs you twice more. It <strong>bloats the context</strong>. The agent spends attention re-reading what it already knew, and signal drowns in the repetition. And it <strong>bloats the bill</strong>: you ship those redundant tokens into the model on every single run, forever, for nothing.</p>
     </section>
 
     <section>
@@ -183,14 +183,14 @@
 
       <div class="tbl-wrap" role="region" aria-label="The three homes for a fact and what belongs in each">
         <table>
-          <caption>Which home a fact belongs in &mdash; and the one question that tells you.</caption>
+          <caption>Which home a piece of information belongs in, and the one question that tells you.</caption>
           <thead>
             <tr><th scope="col">Home</th><th scope="col">What belongs there</th><th scope="col">The edit test</th></tr>
           </thead>
           <tbody>
-            <tr><td data-label="Home">code</td><td data-label="What belongs there">Deterministic logic, formulas, constants &mdash; anything computed.</td><td data-label="The edit test">If it's calculated, it lives with the calculation.</td></tr>
-            <tr><td data-label="Home">prompt</td><td data-label="What belongs there">How the agent must behave: instructions, rules, output conventions.</td><td data-label="The edit test">A behavior the agent follows &mdash; stated a single time.</td></tr>
-            <tr><td data-label="Home">knowledge file</td><td data-label="What belongs there">Domain facts and reference data the agent looks things up in.</td><td data-label="The edit test">A fact the agent consults, not one you tell it twice.</td></tr>
+            <tr><td data-label="Home">code</td><td data-label="What belongs there">Deterministic logic, formulas, constants, i.e., anything computed.</td><td data-label="The edit test">If it's calculated, it lives with the calculation.</td></tr>
+            <tr><td data-label="Home">prompt</td><td data-label="What belongs there">How the agent must behave: workflows, rules, output conventions.</td><td data-label="The edit test">A behavior the agent follows.</td></tr>
+            <tr><td data-label="Home">knowledge file</td><td data-label="What belongs there">Domain facts and reference data the agent looks things up in.</td><td data-label="The edit test">A fact the agent consults.</td></tr>
           </tbody>
         </table>
       </div>
@@ -202,7 +202,7 @@
     <section>
       <span class="snum">03 &middot; Why it's worth the discipline</span>
       <h2>Change-proof, lean, and clearer to think about</h2>
-      <p>Single-sourcing buys three things at once. It's <strong>change-proof</strong>: one edit, and nothing anywhere else silently contradicts it &mdash; the class of bug simply can't form. It's <strong>lean</strong>: the agent reads less, so it attends better and each run costs less. And &mdash; the quiet benefit &mdash; it makes you <strong>think more clearly</strong>, because you can't file a fact until you've decided what kind of fact it is: logic, instruction, or knowledge.</p>
+      <p>Single-sourcing buys three things at once. It's <strong>change-proof</strong>: one edit, and nothing anywhere else silently contradicts it. It's <strong>lean</strong>: the agent reads less, so it attends better and each run costs less. And, here is the quiet benefit, it makes you <strong>think more clearly</strong>, because you can't file a fact until you've decided what kind of fact it is: logic, instruction, or knowledge.</p>
       <p>It's the same instinct as the harness note, widened. There, the point was that the math should live in exactly one place. Here it's every fact. Contracts keep two components from disagreeing about the <em>shape</em> of what they pass; single-sourcing keeps the whole system from disagreeing with itself about the <em>facts</em>. Both are just the refusal to leave the same thing said in two voices.</p>
     </section>
 
@@ -215,11 +215,11 @@
     </div>
     <div class="col">
       <ol class="takes">
-        <li><div class="body"><h4>Every fact gets exactly one home</h4><p>Code, prompt, or knowledge file &mdash; pick one. The same fact in two places is a latent contradiction, not a convenience.</p></div></li>
-        <li><div class="body"><h4>Reference, don't restate</h4><p>Where a fact is needed elsewhere, point at the source instead of copying it. A copy is a promise to keep two things in sync forever &mdash; and you won't.</p></div></li>
+        <li><div class="body"><h4>Every fact gets exactly one home</h4><p>Code, prompt, or knowledge file. The same fact in two places is a latent contradiction, not a convenience.</p></div></li>
+        <li><div class="body"><h4>Reference, don't restate</h4><p>Where a fact is needed elsewhere, point at the source instead of copying it. A copy is a promise to keep two things in sync forever, and you won't.</p></div></li>
         <li><div class="body"><h4>Use the edit test to find the home</h4><p>Ask "if this changed, what's the one file I'd open?" That file is the home. If the answer is several, you've found duplication to collapse.</p></div></li>
         <li><div class="body"><h4>Match the fact to the kind of home</h4><p>Computed things live in code; behaviors live in the prompt; looked-up facts live in the knowledge file. Filing it forces you to know what it is.</p></div></li>
-        <li><div class="body"><h4>Duplicated context is paid for every run</h4><p>Every redundant line is attention the agent spends re-reading and tokens you buy again on each invocation. Repetition is a recurring cost, not a one-time mistake.</p></div></li>
+        <li><div class="body"><h4>Duplicated context is paid for every run</h4><p>Every redundant line is attention the agent spends re-reading and tokens you buy again on each invocation.</p></div></li>
         <li><div class="body"><h4>Single-sourcing is the sibling of contracts</h4><p>Contracts stop components disagreeing about shape; single-sourcing stops the system disagreeing with itself about facts. Same refusal, different axis.</p></div></li>
       </ol>
     </div>
@@ -227,7 +227,7 @@
 
   <footer>
     <div class="col">
-      <p>It's the least heroic habit in the whole series and maybe the highest-leverage: say each thing once, in the one place it belongs, and let everything else look it up. You spend a little discipline up front and buy back a whole category of bug, a leaner context, and a cheaper run &mdash; every time it executes, for as long as it lives.</p>
+      <p>It's the least heroic habit in the whole series and maybe the highest-leverage: say each thing once, in the one place it belongs, and let everything else look it up. You spend a little discipline up front and buy back a whole category of bug, a leaner context, and a cheaper run.</p>
       <p class="sig">Field notes &middot; No. 02 &middot; built pair-programming with Claude Code &middot; details generalized</p>
     </div>
   </footer>
