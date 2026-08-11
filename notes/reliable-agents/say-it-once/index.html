@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Field note No. 02: single source of truth — give every fact one home (code, prompt, or knowledge file) to stay change-proof, lean on context, and cheaper per run.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Say It Once">
+<meta property="og:description" content="Field note No. 02: single source of truth — give every fact one home (code, prompt, or knowledge file) to stay change-proof, lean on context, and cheaper per run.">
+<meta name="twitter:card" content="summary_large_image">
+<style>html{-webkit-text-size-adjust:100%}img,canvas{max-width:100%}</style>
+<title>Say It Once</title>
+
+<style>
+  :root {
+    --ground: #eef1f2; --surface: #f9fbfb; --surface-2: #e7ecee;
+    --ink: #16232d; --muted: #566571; --faint: #8695a0; --hairline: #d3dbdf;
+    --accent: #0c7c88; --accent-ink: #095e67; --stable: #2f8f63; --drift: #bd7714;
+    --stable-wash: rgba(47,143,99,.12); --drift-wash: rgba(189,119,20,.13);
+
+    --serif: "Charter", "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+    --fs-eyebrow: .72rem; --fs-body: 1.08rem; --fs-small: .92rem; --fs-h3: 1.32rem;
+    --fs-h2: clamp(1.55rem, 1.15rem + 1.7vw, 2.15rem);
+    --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
+    --fs-title: clamp(2.5rem, 1.5rem + 4.6vw, 4.4rem);
+    /* one measure: hero, prose, figures and tables share the same two edges */
+    --col: 46rem; --wide: var(--col); --radius: 4px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0c141a; --surface: #121d25; --surface-2: #16232c;
+      --ink: #dbe4e9; --muted: #8598a4; --faint: #61727e; --hairline: #26343d;
+      --accent: #35b2bd; --accent-ink: #6fd3dc; --stable: #52bd88; --drift: #d79a41;
+      --stable-wash: rgba(82,189,136,.14); --drift-wash: rgba(215,154,65,.15);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f2; --surface: #f9fbfb; --surface-2: #e7ecee;
+    --ink: #16232d; --muted: #566571; --faint: #8695a0; --hairline: #d3dbdf;
+    --accent: #0c7c88; --accent-ink: #095e67; --stable: #2f8f63; --drift: #bd7714;
+    --stable-wash: rgba(47,143,99,.12); --drift-wash: rgba(189,119,20,.13);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0c141a; --surface: #121d25; --surface-2: #16232c;
+    --ink: #dbe4e9; --muted: #8598a4; --faint: #61727e; --hairline: #26343d;
+    --accent: #35b2bd; --accent-ink: #6fd3dc; --stable: #52bd88; --drift: #d79a41;
+    --stable-wash: rgba(82,189,136,.14); --drift-wash: rgba(215,154,65,.15);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--serif); font-size: var(--fs-body); line-height: 1.68; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  .col { max-width: var(--col); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+  .wide { max-width: var(--wide); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+
+  .eyebrow { font-family: var(--mono); font-size: var(--fs-eyebrow); letter-spacing: .22em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; }
+
+  header.hero {
+    border-bottom: 1px solid var(--hairline);
+    padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 4vw, 2.75rem);
+    background:
+      radial-gradient(120% 80% at 10% -10%, var(--drift-wash), transparent 58%),
+      radial-gradient(90% 70% at 96% 0%, var(--stable-wash), transparent 55%);
+  }
+  .hero .kicker { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.5rem; }
+  .hero .kicker .rule { height: 1px; flex: 1; background: var(--hairline); }
+  h1 { font-family: var(--sans); font-weight: 800; font-size: var(--fs-title); line-height: 1.02; letter-spacing: -.028em; margin: 0 0 .7rem; text-wrap: balance; }
+  .dek { font-size: var(--fs-dek); color: var(--muted); line-height: 1.5; margin: 0 0 1.9rem; max-width: 35rem; text-wrap: pretty; }
+  .meta { font-family: var(--mono); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; }
+
+  figure.space { position: relative; margin: clamp(1.75rem, 4vw, 2.75rem) 0 0; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+  figure.space .plot { position: relative; }
+  figure.space canvas { display: block; width: 100%; height: 210px; }
+  figure.space figcaption { border-top: 1px solid var(--hairline); font-family: var(--mono); font-size: .72rem; letter-spacing: .02em; color: var(--muted); padding: .7rem 1rem; background: var(--surface-2); }
+
+  main { padding-block: clamp(2.5rem, 6vw, 4rem); }
+  section { padding-block: clamp(1.5rem, 4vw, 2.5rem); }
+  .snum { font-family: var(--mono); font-size: var(--fs-eyebrow); letter-spacing: .18em; text-transform: uppercase; color: var(--accent-ink); display: block; margin-bottom: .55rem; }
+  h2 { font-family: var(--sans); font-weight: 750; font-size: var(--fs-h2); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 1rem; text-wrap: balance; }
+  h3 { font-family: var(--sans); font-weight: 700; font-size: var(--fs-h3); letter-spacing: -.01em; margin: 2rem 0 .6rem; }
+  p { margin: 0 0 1.15rem; }
+  .lead { font-size: 1.16rem; color: var(--ink); }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  em.term { font-style: normal; font-family: var(--mono); font-size: .9em; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 9%, transparent); padding: .05em .35em; border-radius: 3px; }
+
+  .drop::first-letter { font-family: var(--sans); font-weight: 800; font-size: 3.3em; line-height: .82; float: left; padding: .04em .12em 0 0; color: var(--accent); }
+
+  blockquote { margin: 2.2rem 0; padding-left: 1.15rem; border-left: 3px solid var(--accent); font-family: var(--sans); font-weight: 600; font-size: clamp(1.25rem, 1.05rem + 1vw, 1.6rem); line-height: 1.3; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+
+  .band { background: var(--surface-2); border-block: 1px solid var(--hairline); padding-block: clamp(2rem, 5vw, 3.25rem); }
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); margin: 1.6rem 0; }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 30rem; table-layout: fixed; }
+  th:first-child, td:first-child { width: 22%; }
+  thead th { text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: .85rem 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2); }
+  tbody td { padding: .9rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.4; overflow-wrap: break-word; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody td:first-child { font-weight: 650; color: var(--accent-ink); font-family: var(--mono); font-size: .82rem; letter-spacing: .02em; }
+  caption { caption-side: bottom; text-align: left; font-size: .82rem; color: var(--muted); padding-top: .75rem; font-family: var(--sans); }
+
+  /* narrow screens: stack each row into a labelled block instead of scrolling sideways */
+  @media (max-width: 34rem) {
+    .tbl-wrap { overflow-x: visible; }
+    tbody, tr, td, caption { display: block; }
+    table { min-width: 0; display: flex; flex-direction: column; }  /* flex so the caption can stay last */
+    tbody { order: 1; }
+    caption { order: 2; }
+    thead { display: none; }
+    th, td { width: auto !important; }
+    tbody tr { border-bottom: 1px solid var(--hairline); padding: .55rem 0; }
+    tbody tr:last-child { border-bottom: 0; }
+    tbody td { border-bottom: 0; padding: .45rem 1.1rem; }
+    tbody td::before { content: attr(data-label); display: block; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: .15rem; }
+    caption { padding: .75rem 1.1rem 0; }
+  }
+
+
+  .takes { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; counter-reset: t; }
+  .takes li { background: var(--surface); padding: 1.3rem 1.4rem 1.4rem; display: grid; grid-template-columns: 2.4rem 1fr; gap: .4rem 1rem; align-items: start; counter-increment: t; }
+  .takes li::before { content: counter(t, decimal-leading-zero); font-family: var(--mono); font-size: .8rem; font-weight: 600; color: var(--accent); padding-top: .28rem; letter-spacing: .05em; }
+  .takes h4 { font-family: var(--sans); font-size: 1.06rem; font-weight: 700; letter-spacing: -.01em; margin: .12rem 0 .3rem; color: var(--ink); }
+  .takes p { font-size: var(--fs-small); color: var(--muted); margin: 0; line-height: 1.5; }
+  .takes .body { grid-column: 2; }
+
+  footer { border-top: 1px solid var(--hairline); padding-block: 2.5rem 3.5rem; color: var(--muted); }
+  footer p { font-size: var(--fs-small); margin: 0 0 .6rem; }
+  footer .sig { font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+  hr.tick { border: 0; height: 1px; background: var(--hairline); margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+</style>
+<script src="../../../assets/site.js"></script>
+</head>
+<body>
+<div style="border-bottom:1px solid var(--hairline);"><div style="max-width:var(--wide,58rem);margin-inline:auto;padding:.7rem clamp(1.25rem,5vw,2rem);font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;display:flex;justify-content:space-between;gap:1rem;"><a href="../" style="color:var(--muted);text-decoration:none;">&larr; The series</a><a href="../../../" style="color:var(--muted);text-decoration:none;">yingzhiva.github.io</a></div></div>
+<header class="hero">
+  <div class="wide">
+    <div class="kicker">
+      <span class="eyebrow">Field Notes &middot; No. 02 &middot; Single Source of Truth</span>
+      <span class="rule"></span>
+    </div>
+    <h1>Say It Once</h1>
+    <p class="dek">The same fact copied into three places isn't redundancy, it's a future contradiction. A note on giving every fact exactly one home: in the code, the prompt, or the knowledge file, and never more than one.</p>
+    <div class="meta">
+      <span>Field note</span><span>&middot;</span><span>~6 min read</span><span>&middot;</span><span>Details generalized</span>
+    </div>
+
+    <figure class="space" aria-label="Three copies of the same fact live in code, prompt, and docs. One is edited; the others go stale and disagree. Then they collapse into a single source the other two reference.">
+      <div class="plot">
+        <canvas id="dedup" width="1160" height="420"></canvas>
+      </div>
+      <figcaption>The same value in three homes. Edit one and the others go stale, until the copies collapse into a single source the rest just point to.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+
+    <section>
+      <p class="lead drop">In the last note I said a tested function was "one place you can read, test, and fix." That sentence was hiding a whole discipline of its own. Building this system, information could live in three kinds of places: in the code, in the agent's prompt, or in a knowledge file the agent reads. The single most durable habit I formed was not letting the same fact live in more than one of them.</p>
+    </section>
+
+    <hr class="tick" />
+
+    <section>
+      <span class="snum">01 &middot; The failure mode</span>
+      <h2>Two copies of a fact are a contradiction waiting to happen</h2>
+      <p>Duplication feels harmless when you write it. You're just being helpful, restating a rule where it's convenient. The rot shows up later, on the day someone edits one copy and not the other. Now the system quietly disagrees with itself, and nothing complains: both versions are individually valid, so no schema catches it and no test fails. It's the same slow divergence a drift eval exists to catch, except self-inflicted.</p>
+      <blockquote>Duplicated facts don't stay redundant. They wait for one edit and become a contradiction.</blockquote>
+      <p>And even before anything goes stale, every duplicate costs you twice more. It <strong>bloats the context</strong>. The agent spends attention re-reading what it already knew, and signal drowns in the repetition. And it <strong>bloats the bill</strong>: you ship those redundant tokens into the model on every single run, forever, for nothing.</p>
+    </section>
+
+    <section>
+      <span class="snum">02 &middot; The rule</span>
+      <h2>One home per fact; everything else points to it</h2>
+      <p>The discipline is simple to state and constant to uphold: choose the single right home for each fact, and make every other place that needs it <em>reference</em> that home rather than restate it. The interesting part is that deciding <em>which</em> home forces you to understand what kind of fact you're holding.</p>
+
+      <div class="tbl-wrap" role="region" aria-label="The three homes for a fact and what belongs in each">
+        <table>
+          <caption>Which home a piece of information belongs in, and the one question that tells you.</caption>
+          <thead>
+            <tr><th scope="col">Home</th><th scope="col">What belongs there</th><th scope="col">The edit test</th></tr>
+          </thead>
+          <tbody>
+            <tr><td data-label="Home">code</td><td data-label="What belongs there">Deterministic logic, formulas, constants, i.e., anything computed.</td><td data-label="The edit test">If it's calculated, it lives with the calculation.</td></tr>
+            <tr><td data-label="Home">prompt</td><td data-label="What belongs there">How the agent must behave: workflows, rules, output conventions.</td><td data-label="The edit test">A behavior the agent follows.</td></tr>
+            <tr><td data-label="Home">knowledge file</td><td data-label="What belongs there">Domain facts and reference data the agent looks things up in.</td><td data-label="The edit test">A fact the agent consults.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The test that settles almost every case: <strong>if this changed, what's the one file I'd open to change it?</strong> That file is its home. If the honest answer is "three files," you've found a duplication to collapse.</p>
+      <blockquote>For every fact, there should be exactly one file you'd open to change it.</blockquote>
+    </section>
+
+    <section>
+      <span class="snum">03 &middot; Why it's worth the discipline</span>
+      <h2>Change-proof, lean, and clearer to think about</h2>
+      <p>Single-sourcing buys three things at once. It's <strong>change-proof</strong>: one edit, and nothing anywhere else silently contradicts it. It's <strong>lean</strong>: the agent reads less, so it attends better and each run costs less. And, here is the quiet benefit, it makes you <strong>think more clearly</strong>, because you can't file a fact until you've decided what kind of fact it is: logic, instruction, or knowledge.</p>
+      <p>It's the same instinct as the harness note, widened. There, the point was that the math should live in exactly one place. Here it's every fact. Contracts keep two components from disagreeing about the <em>shape</em> of what they pass; single-sourcing keeps the whole system from disagreeing with itself about the <em>facts</em>. Both are just the refusal to leave the same thing said in two voices.</p>
+    </section>
+
+  </div>
+
+  <div class="band">
+    <div class="col" style="padding-top:0;padding-bottom:0;">
+      <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
+      <h2 style="margin-bottom:1.6rem;">What I'd keep single-sourced</h2>
+    </div>
+    <div class="col">
+      <ol class="takes">
+        <li><div class="body"><h4>Every fact gets exactly one home</h4><p>Code, prompt, or knowledge file. The same fact in two places is a latent contradiction, not a convenience.</p></div></li>
+        <li><div class="body"><h4>Reference, don't restate</h4><p>Where a fact is needed elsewhere, point at the source instead of copying it. A copy is a promise to keep two things in sync forever, and you won't.</p></div></li>
+        <li><div class="body"><h4>Use the edit test to find the home</h4><p>Ask "if this changed, what's the one file I'd open?" That file is the home. If the answer is several, you've found duplication to collapse.</p></div></li>
+        <li><div class="body"><h4>Match the fact to the kind of home</h4><p>Computed things live in code; behaviors live in the prompt; looked-up facts live in the knowledge file. Filing it forces you to know what it is.</p></div></li>
+        <li><div class="body"><h4>Duplicated context is paid for every run</h4><p>Every redundant line is attention the agent spends re-reading and tokens you buy again on each invocation.</p></div></li>
+        <li><div class="body"><h4>Single-sourcing is the sibling of contracts</h4><p>Contracts stop components disagreeing about shape; single-sourcing stops the system disagreeing with itself about facts. Same refusal, different axis.</p></div></li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>
+    <div class="col">
+      <p>It's the least heroic habit in the whole series and maybe the highest-leverage: say each thing once, in the one place it belongs, and let everything else look it up. You spend a little discipline up front and buy back a whole category of bug, a leaner context, and a cheaper run.</p>
+      <p class="sig">Field notes &middot; No. 02 &middot; built pair-programming with Claude Code &middot; details generalized</p>
+    </div>
+  </footer>
+</main>
+
+<script>
+  (function () {
+    var canvas = document.getElementById("dedup");
+    if (!canvas || !canvas.getContext) return;
+    var ctx = canvas.getContext("2d");
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    var LABELS = ["code", "prompt", "docs"];
+    var V1 = "1.5%", V2 = "1.8%";
+
+    function tokens() {
+      var s = getComputedStyle(document.documentElement);
+      return {
+        accent: s.getPropertyValue("--accent").trim() || "#0c7c88",
+        stable: s.getPropertyValue("--stable").trim() || "#2f8f63",
+        drift:  s.getPropertyValue("--drift").trim()  || "#bd7714",
+        grid:   s.getPropertyValue("--hairline").trim() || "#d3dbdf",
+        muted:  s.getPropertyValue("--muted").trim() || "#566571",
+        surface:s.getPropertyValue("--surface").trim() || "#f9fbfb",
+        faint:  s.getPropertyValue("--faint").trim() || "#8695a0",
+        ink:    s.getPropertyValue("--ink").trim() || "#16232d"
+      };
+    }
+
+    var W = 0, H = 210, dpr = 1, padX = 60, chipY = 84, labelY = 150;
+    var CHIPW = 66, CHIPH = 34;
+    function resize() {
+      var rect = canvas.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = Math.max(320, rect.width); canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function colX(i) { return padX + i * (W - 2 * padX) / 2; }
+
+    function rrect(x, y, w, h, rad) {
+      ctx.beginPath();
+      ctx.moveTo(x + rad, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rad);
+      ctx.arcTo(x + w, y + h, x, y + h, rad);
+      ctx.arcTo(x, y + h, x, y, rad);
+      ctx.arcTo(x, y, x + w, y, rad);
+      ctx.closePath();
+    }
+    function chip(cx, value, border, txt, alpha) {
+      if (alpha <= 0) return;
+      ctx.globalAlpha = alpha;
+      var x = cx - CHIPW / 2, y = chipY - CHIPH / 2;
+      ctx.fillStyle = tokens().surface; rrect(x, y, CHIPW, CHIPH, 6); ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = border; rrect(x, y, CHIPW, CHIPH, 6); ctx.stroke();
+      // status dot
+      ctx.beginPath(); ctx.fillStyle = border; ctx.arc(x + 11, chipY, 3.1, 0, Math.PI * 2); ctx.fill();
+      // value
+      ctx.fillStyle = txt; ctx.font = "600 13px ui-monospace, monospace";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(value, cx + 6, chipY + .5);
+      ctx.globalAlpha = 1;
+    }
+
+    // phase timeline
+    var P = { sync: 1000, drift: 2300, merge: 3700, hold: 4500 };
+    var CYCLE = P.hold;
+
+    function draw(t) {
+      var c = tokens();
+      ctx.clearRect(0, 0, W, H);
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+
+      var edited = t >= P.sync;                        // chip0 shows V2 after edit
+      var stale  = t >= P.sync && t < P.merge;         // chips1,2 amber+stale
+      var merging = t >= P.drift;                      // consolidation underway
+      var mergeP = Math.max(0, Math.min(1, (t - P.drift) / (P.merge - P.drift)));
+      var sideAlpha = 1 - mergeP;                      // chips 1,2 fade during merge
+      var refP = mergeP;                               // reference links draw in
+
+      // reference links (drawn under chips), from side columns to the canonical (col0)
+      if (merging) {
+        ctx.strokeStyle = c.stable; ctx.globalAlpha = 0.6 * refP; ctx.lineWidth = 1.6; ctx.setLineDash([4, 4]);
+        for (var s = 1; s <= 2; s++) {
+          var x2 = colX(s) - (colX(s) - colX(0)) * refP * 0.0; // start point stays at column
+          ctx.beginPath();
+          ctx.moveTo(colX(s), chipY);
+          ctx.lineTo(colX(0) + CHIPW / 2 + 4, chipY);
+          ctx.stroke();
+        }
+        ctx.setLineDash([]); ctx.globalAlpha = 1;
+      }
+
+      // canonical chip (col 0)
+      var cBorder = edited ? (merging ? c.stable : c.accent) : c.accent;
+      chip(colX(0), edited ? V2 : V1, cBorder, c.ink || c.muted, 1);
+      // edit ring pulse right after edit
+      if (t >= P.sync && t < P.sync + 420) {
+        var rp = (t - P.sync) / 420;
+        ctx.globalAlpha = 0.5 * (1 - rp); ctx.strokeStyle = c.accent; ctx.lineWidth = 2;
+        rrect(colX(0) - CHIPW / 2 - rp * 10, chipY - CHIPH / 2 - rp * 10, CHIPW + rp * 20, CHIPH + rp * 20, 8); ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      // side chips (col 1,2)
+      if (sideAlpha > 0.01) {
+        var sb = stale ? c.drift : c.accent;
+        chip(colX(1), V1, sb, c.muted, sideAlpha);
+        chip(colX(2), V1, sb, c.muted, sideAlpha);
+        // mismatch badge when stale
+        if (stale) {
+          ctx.globalAlpha = sideAlpha;
+          for (var k = 1; k <= 2; k++) {
+            ctx.fillStyle = c.drift; ctx.font = "700 13px ui-monospace, monospace";
+            ctx.fillText("≠", colX(k) + CHIPW / 2 + 9, chipY);
+          }
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // column labels
+      ctx.font = "600 11px ui-monospace, monospace";
+      for (var i = 0; i < 3; i++) {
+        var faded = (i > 0) && merging;
+        ctx.globalAlpha = faded ? 0.45 : 1;
+        ctx.fillStyle = c.muted;
+        ctx.fillText(LABELS[i], colX(i), labelY);
+        if (i > 0 && merging) {
+          ctx.fillStyle = c.stable; ctx.font = "600 9px ui-monospace, monospace";
+          ctx.globalAlpha = 0.7 * refP;
+          ctx.fillText("→ refs code", colX(i), labelY + 15);
+          ctx.font = "600 11px ui-monospace, monospace";
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // caption-ish state word, top-left
+      ctx.textAlign = "left"; ctx.fillStyle = c.faint; ctx.font = "600 10px ui-monospace, monospace";
+      var word = !edited ? "THREE COPIES, IN SYNC" : (merging ? "ONE SOURCE, REFERENCED" : "ONE EDIT — OTHERS GO STALE");
+      ctx.fillText(word, 16, 22);
+      ctx.textAlign = "center";
+    }
+
+    var start = null;
+    function frame(ts) {
+      if (start === null) start = ts;
+      var t = (ts - start) % CYCLE;
+      draw(t);
+      requestAnimationFrame(frame);
+    }
+    function run() { resize(); if (reduce) draw(P.merge + 1); else { start = null; requestAnimationFrame(frame); } }
+    run();
+
+    var rt;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(run, 180); });
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", function () { if (reduce) draw(P.merge + 1); });
+    new MutationObserver(function () { if (reduce) draw(P.merge + 1); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  })();
+</script>
+</body>
+</html>

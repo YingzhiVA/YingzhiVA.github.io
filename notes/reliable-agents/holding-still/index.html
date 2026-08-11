@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Field note No. 05: building a drift eval to stabilize a multi-stage LLM agent workflow — the capstone resting on the harness, single-sourcing, and graded test profiles.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Teaching an Agent to Hold Still">
+<meta property="og:description" content="Field note No. 05: building a drift eval to stabilize a multi-stage LLM agent workflow — the capstone resting on the harness, single-sourcing, and graded test profiles.">
+<meta name="twitter:card" content="summary_large_image">
+<style>html{-webkit-text-size-adjust:100%}img,canvas{max-width:100%}</style>
+<title>Teaching an Agent to Hold Still</title>
+
+<style>
+  :root {
+    /* light — cool slate paper, chosen not defaulted (slight blue bias) */
+    --ground: #eef1f2;
+    --surface: #f9fbfb;
+    --surface-2: #e7ecee;
+    --ink: #16232d;
+    --muted: #566571;
+    --faint: #8695a0;
+    --hairline: #d3dbdf;
+    --accent: #0c7c88;      /* instrument teal */
+    --accent-ink: #095e67;
+    --stable: #2f8f63;      /* semantic: settled/green */
+    --drift: #bd7714;       /* semantic: drift/amber */
+    --stable-wash: rgba(47,143,99,.12);
+    --drift-wash: rgba(189,119,20,.13);
+
+    --serif: "Charter", "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+    --fs-eyebrow: .72rem;
+    --fs-body: 1.08rem;
+    --fs-small: .92rem;
+    --fs-h3: 1.32rem;
+    --fs-h2: clamp(1.55rem, 1.15rem + 1.7vw, 2.15rem);
+    --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
+    --fs-title: clamp(2.5rem, 1.5rem + 4.6vw, 4.4rem);
+
+    /* one measure: hero, prose, figures and tables share the same two edges */
+    --col: 46rem;
+    --wide: var(--col);
+    --radius: 4px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0c141a;
+      --surface: #121d25;
+      --surface-2: #16232c;
+      --ink: #dbe4e9;
+      --muted: #8598a4;
+      --faint: #61727e;
+      --hairline: #26343d;
+      --accent: #35b2bd;
+      --accent-ink: #6fd3dc;
+      --stable: #52bd88;
+      --drift: #d79a41;
+      --stable-wash: rgba(82,189,136,.14);
+      --drift-wash: rgba(215,154,65,.15);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f2; --surface: #f9fbfb; --surface-2: #e7ecee;
+    --ink: #16232d; --muted: #566571; --faint: #8695a0; --hairline: #d3dbdf;
+    --accent: #0c7c88; --accent-ink: #095e67; --stable: #2f8f63; --drift: #bd7714;
+    --stable-wash: rgba(47,143,99,.12); --drift-wash: rgba(189,119,20,.13);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0c141a; --surface: #121d25; --surface-2: #16232c;
+    --ink: #dbe4e9; --muted: #8598a4; --faint: #61727e; --hairline: #26343d;
+    --accent: #35b2bd; --accent-ink: #6fd3dc; --stable: #52bd88; --drift: #d79a41;
+    --stable-wash: rgba(82,189,136,.14); --drift-wash: rgba(215,154,65,.15);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--fs-body);
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .col { max-width: var(--col); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+  .wide { max-width: var(--wide); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--fs-eyebrow);
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    border-bottom: 1px solid var(--hairline);
+    padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 4vw, 2.75rem);
+    background:
+      radial-gradient(120% 80% at 85% -10%, var(--stable-wash), transparent 60%),
+      radial-gradient(90% 70% at 0% 0%, var(--drift-wash), transparent 55%);
+  }
+  .hero .kicker { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.5rem; }
+  .hero .kicker .rule { height: 1px; flex: 1; background: var(--hairline); }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: var(--fs-title);
+    line-height: 1.02;
+    letter-spacing: -.028em;
+    margin: 0 0 .7rem;
+    text-wrap: balance;
+  }
+  .dek {
+    font-size: var(--fs-dek);
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0 0 1.9rem;
+    max-width: 34rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.1rem;
+  }
+
+  .scope {
+    position: relative;
+    margin: clamp(1.75rem, 4vw, 2.75rem) 0 0;  /* kill the UA figure margin so it lines up with the title */
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .scope canvas { display: block; width: 100%; height: 190px; }
+  .scope .tags {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .scope .tag { position: absolute; padding: .28rem .5rem; }
+  .scope .tag--drift { top: .5rem; left: .7rem; color: var(--drift); }
+  .scope .tag--stable { bottom: .5rem; right: .7rem; color: var(--stable); }
+  .scope .tag--axis { bottom: .5rem; left: .7rem; color: var(--faint); }
+
+  /* ---------- prose ---------- */
+  main { padding-block: clamp(2.5rem, 6vw, 4rem); }
+  section { padding-block: clamp(1.5rem, 4vw, 2.5rem); }
+  .snum {
+    font-family: var(--mono);
+    font-size: var(--fs-eyebrow);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: block;
+    margin-bottom: .55rem;
+  }
+  h2 {
+    font-family: var(--sans);
+    font-weight: 750;
+    font-size: var(--fs-h2);
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    margin: 0 0 1rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: var(--fs-h3);
+    letter-spacing: -.01em;
+    margin: 2rem 0 .6rem;
+  }
+  p { margin: 0 0 1.15rem; }
+  .lead { font-size: 1.16rem; color: var(--ink); }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  em.term { font-style: normal; font-family: var(--mono); font-size: .9em; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 9%, transparent); padding: .05em .35em; border-radius: 3px; }
+
+  .drop::first-letter {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 3.3em;
+    line-height: .82;
+    float: left;
+    padding: .04em .12em 0 0;
+    color: var(--accent);
+  }
+
+  blockquote {
+    margin: 2.2rem 0;
+    padding-left: 1.15rem;
+    border-left: 3px solid var(--accent);
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: clamp(1.25rem, 1.05rem + 1vw, 1.6rem);
+    line-height: 1.3;
+    letter-spacing: -.015em;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+
+  /* ---------- readout strip ---------- */
+  .band { background: var(--surface-2); border-block: 1px solid var(--hairline); padding-block: clamp(2rem, 5vw, 3.25rem); }
+  .readouts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; }
+  @media (max-width: 34rem) { .readouts { grid-template-columns: 1fr; } }
+  /* flex column + auto top margin pins the values to the bottom of the equal-height
+     cells, so they share a baseline even when a label wraps to two lines */
+  .readout { background: var(--surface); padding: 1.25rem 1.35rem 1.4rem; display: flex; flex-direction: column; }
+  .readout .lbl { font-family: var(--mono); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .readout .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 1.9rem; font-weight: 600; letter-spacing: -.01em; margin-top: auto; padding-top: .5rem; display: flex; align-items: baseline; gap: .4rem; }
+  .readout .from { color: var(--drift); }
+  .readout .arrow { color: var(--faint); font-size: 1.1rem; }
+  .readout .to { color: var(--stable); }
+  .band .cap { font-family: var(--mono); font-size: .74rem; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; margin: 0 0 1.25rem; }
+
+  .pill { font-family: var(--mono); font-size: .68rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; padding: .2em .55em; border-radius: 999px; }
+  .pill--fail { color: var(--drift); background: var(--drift-wash); }
+  .pill--pass { color: var(--stable); background: var(--stable-wash); }
+
+  /* ---------- ledger table ---------- */
+  .ledger-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 30rem; table-layout: fixed; }
+  th:first-child, td:first-child { width: 28%; }
+  th:last-child, td:last-child { width: 33%; }
+  thead th { text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: .85rem 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2); }
+  tbody td { padding: 1rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.45; overflow-wrap: break-word; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody td:first-child { font-weight: 650; color: var(--ink); }
+  td .pin { color: var(--stable); font-weight: 650; }
+  caption { caption-side: bottom; text-align: left; font-size: .82rem; color: var(--muted); padding-top: .75rem; font-family: var(--sans); }
+
+  /* narrow screens: stack each row into a labelled block instead of scrolling sideways */
+  @media (max-width: 34rem) {
+    .ledger-wrap { overflow-x: visible; }
+    tbody, tr, td, caption { display: block; }
+    table { min-width: 0; display: flex; flex-direction: column; }  /* flex so the caption can stay last */
+    tbody { order: 1; }
+    caption { order: 2; }
+    thead { display: none; }
+    th, td { width: auto !important; }
+    tbody tr { border-bottom: 1px solid var(--hairline); padding: .55rem 0; }
+    tbody tr:last-child { border-bottom: 0; }
+    tbody td { border-bottom: 0; padding: .45rem 1.1rem; }
+    tbody td::before { content: attr(data-label); display: block; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: .15rem; }
+    caption { padding: .75rem 1.1rem 0; }
+  }
+
+  /* ---------- takeaways ---------- */
+  .takes { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; counter-reset: t; }
+  .takes li { background: var(--surface); padding: 1.3rem 1.4rem 1.4rem; display: grid; grid-template-columns: 2.4rem 1fr; gap: .4rem 1rem; align-items: start; counter-increment: t; }
+  .takes li::before { content: counter(t, decimal-leading-zero); font-family: var(--mono); font-size: .8rem; font-weight: 600; color: var(--accent); padding-top: .28rem; letter-spacing: .05em; }
+  .takes h4 { font-family: var(--sans); font-size: 1.06rem; font-weight: 700; letter-spacing: -.01em; margin: .12rem 0 .3rem; color: var(--ink); }
+  .takes p { font-size: var(--fs-small); color: var(--muted); margin: 0; line-height: 1.5; }
+  .takes .body { grid-column: 2; }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--hairline); padding-block: 2.5rem 3.5rem; color: var(--muted); }
+  footer p { font-size: var(--fs-small); margin: 0 0 .6rem; }
+  footer .sig { font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+  hr.tick { border: 0; height: 1px; background: var(--hairline); margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+</style>
+<script src="../../../assets/site.js"></script>
+</head>
+<body>
+<div style="border-bottom:1px solid var(--hairline);"><div style="max-width:var(--wide,58rem);margin-inline:auto;padding:.7rem clamp(1.25rem,5vw,2rem);font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;display:flex;justify-content:space-between;gap:1rem;"><a href="../" style="color:var(--muted);text-decoration:none;">&larr; The series</a><a href="../../../" style="color:var(--muted);text-decoration:none;">yingzhiva.github.io</a></div></div>
+<header class="hero">
+  <div class="wide">
+    <div class="kicker">
+      <span class="eyebrow">Field Notes &middot; No. 05 &middot; Agent Reliability</span>
+      <span class="rule"></span>
+    </div>
+    <h1>Teaching an Agent to Hold Still</h1>
+    <p class="dek">A multi-stage LLM workflow that gave a different answer every time it ran, and the measurement discipline that got it to reproduce itself to the last digit.</p>
+    <div class="meta">
+      <span>Post-mortem</span>
+      <span>&middot;</span>
+      <span>~9 min read</span>
+      <span>&middot;</span>
+      <span>Details generalized</span>
+    </div>
+
+    <figure class="scope" aria-label="An oscilloscope trace that starts as noisy drift on the left and settles to a flat, stable line on the right.">
+      <canvas id="trace" width="1160" height="380"></canvas>
+      <div class="tags">
+        <span class="tag tag--drift">drift</span>
+        <span class="tag tag--stable">stable</span>
+        <span class="tag tag--axis">runs &rarr;</span>
+      </div>
+    </figure>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+
+    <section>
+      <p class="lead drop">A pipeline of language-model agents had been built to turn a conversation with a client and their submitted documents into a recommended plan. Five stages, hand-offs between them, a good seventeen minutes end to end. I was amazed by the output: a polished report with sound reasoning, an action plan, and a detailed analysis to support the main conclusions. But it had a quiet problem: run it twice on the same input and it could hand back two different recommendations.</p>
+      <p>Nothing had crashed and it turned out that the agents had not lied either. The pipeline was simply <em>improvising</em> in the places the specification left open, and doing it differently each time. This is the story of how I made that visible, then made it stop. The domain doesn't matter; the shape of the problem could be familiar in every agent system.</p>
+      <p>This is the last note in the series for a reason: the eval leans on everything the earlier ones built: the inspectable, deterministic harness, the single-sourced facts, and the graded test profiles it runs against. With those in place, measuring stability became possible; without them, it would have been guesswork.</p>
+    </section>
+
+    <hr class="tick" />
+
+    <section>
+      <span class="snum">01 &middot; The reframe</span>
+      <h2>Measure whether it holds, not whether it's right</h2>
+      <p>The instinct is to grade the output against a "correct" answer. But for an open-ended recommendation there often isn't one, and for a PoC I did not have access to a ground truth provided by a human professional. So I set accuracy aside and asked a different, cheaper question:</p>
+      <blockquote>Does the workflow give the same answer when nothing about the question changed?</blockquote>
+      <p>That reframing did most of the work. <strong>Decision stability</strong>, i.e., whether the recommended strategy holds across runs. The underlying numbers were tracked too, but demoted to secondary. A recommendation that flip-flops is a failure whether or not any single run is defensible, and instability is something you can measure today. In the future, when a human expert sees a questionable recommendation, they can be sure that the root cause is a coding error, a misinterpretation of the knowledge base, or missing information, all of which can be corrected. They should not be chasing random fluctuations of the pipeline. This is essential for building trustworthy AI systems.</p>
+    </section>
+
+    <section>
+      <span class="snum">02 &middot; The openings</span>
+      <h2>Two facts made it tractable</h2>
+      <p>First, the stochastic core was <strong>seeded</strong>. The simulation underneath the agents ran off a fixed random seed, so identical inputs produced bit-identical numbers. That single property is worth more than it sounds: it means any numeric movement between runs is <em>signal</em> (the agent fed a different parameter, or the code changed), and never simulation noise.</p>
+      <p>Second, the pipeline had a <strong>headless mode</strong>: feed it a pre-built input and it skips the human conversation. So the whole thing could run unattended, on a schedule, as many times as I liked. A stability eval you can't run cheaply and often is a stability eval you won't run.</p>
+    </section>
+
+    <section>
+      <span class="snum">03 &middot; The ruler</span>
+      <h2>Build the measuring instrument out of ordinary code</h2>
+      <p>The measurement layer, the thing that reads two runs and decides whether they agree, is <strong>plain, deterministic code with no model in it.</strong> If you grade an LLM's output with another LLM, your ruler drifts with the thing it's measuring, and you can never tell a real regression from a bad mood in the judge. This is more relevant in this particular use case as opposed to other LLM applications because the recommendations are based on strong logical, and numerical foundations.</p>
+      <p>On top of that sat three artifacts: an append-only <strong>ledger</strong>, one row per run per metric, the data of record that lets you attribute a drift to the change that caused it; a set of <strong>dashboards</strong> regenerated from the ledger; and a small library of frozen <strong>baselines</strong>, the golden runs everything is measured against.</p>
+      <h3>Categorical up top, numbers underneath</h3>
+      <p>The scorecard put the decisions first, as categoricals: the recommended strategy and the sub-choices feeding it. Any change at all is a drift. There is no "close enough" on a decision. The numbers were graded on <em>tolerance bands</em>: a movement was fine within a small absolute-and-relative window, flagged outside it.</p>
+    </section>
+
+    <section>
+      <span class="snum">04 &middot; Not crying wolf</span>
+      <h2>One root cause, one failure</h2>
+      <p>Early on, when a single decision flips, every number downstream of it moves too. Report each of those as its own failure due to one root cause becomes fifteen red cells. So the ruler <strong>attributes</strong>: when a decision flips, the numbers that mechanically follow it are annotated and not counted again. The high-signal event, i.e., the one you actually chase, is a deterministic number that moved <em>while its governing decision held still</em>. Given the seeded core, that can only mean the math changed.</p>
+      <p>The other half of not crying wolf was measuring the <strong>margin</strong>. A recommendation chosen from a field of near-identical options is a coin toss; one chosen over a clear runner-up is a real verdict. So I recorded how close the race was. A flip within a dead heat is expected and shrugged off. A flip away from a clear winner is an alarm.</p>
+    </section>
+
+  </div><!-- /col -->
+
+  <div class="band">
+    <div class="col">
+      <p class="cap">First scheduled run &rarr; latest, same suite</p>
+      <div class="readouts">
+        <div class="readout">
+          <div class="lbl">Decision stability</div>
+          <div class="val"><span class="from">40%</span><span class="arrow">&rarr;</span><span class="to">100%</span></div>
+        </div>
+        <div class="readout">
+          <div class="lbl">Cases holding their call</div>
+          <div class="val"><span class="from">2/5</span><span class="arrow">&rarr;</span><span class="to">5/5</span></div>
+        </div>
+        <div class="readout">
+          <div class="lbl">Unexplained drifts</div>
+          <div class="val"><span class="from">many</span><span class="arrow">&rarr;</span><span class="to">0</span></div>
+        </div>
+      </div>
+      <p style="font-family:var(--mono);font-size:.76rem;color:var(--muted);margin:1.1rem 0 0;letter-spacing:.03em;">
+        suite verdict &nbsp;<span class="pill pill--fail">Fail</span>&nbsp; &rarr; &nbsp;<span class="pill pill--pass">Pass</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="col">
+
+    <section>
+      <span class="snum">05 &middot; First light</span>
+      <h2>The first run came back red</h2>
+      <p>Three of five test profiles drifted on the recommendation itself. A green first run mostly means the eval isn't looking hard enough. The point of building the instrument was to see something, and it saw plenty. The question became: <em>why</em>.</p>
+    </section>
+
+    <section>
+      <span class="snum">06 &middot; Calibration</span>
+      <h2>From "it drifts" to a coordinate</h2>
+      <p>"It's flaky" is not a bug report. To turn it into one I ran each profile <strong>K times in a fixed state</strong> and aggregated the values instead of the pass/fail: for each decision, its <em>mode-share</em> (how often the most common answer won); for each number, its coefficient of variation. Suddenly the vague complaint had coordinates. A decision at 71% mode-share is a specific fork taken two runs out of seven, with a specific pair of numbers on either side of it. Calibration is the microscope you point at whatever the eval flags.</p>
+    </section>
+
+    <section>
+      <span class="snum">07 &middot; The pattern</span>
+      <h2>Almost all of it was unpinned degrees of freedom</h2>
+      <p>Every root cause I chased turned out to be the same species: a spot where the agent had latitude the specification never nailed down, so independent runs resolved it independently.</p>
+
+      <blockquote>The agent wasn't unreliable. I'd underspecified it, and the agent was improvising in the gaps I left, faithfully, and differently every time.</blockquote>
+
+      <div class="ledger-wrap" role="region" aria-label="Three root causes and their fixes">
+        <table>
+          <caption>Three drifts, one shape. Each fix is a rule in the spec, not a better model.</caption>
+          <thead>
+            <tr>
+              <th scope="col">The opening</th>
+              <th scope="col">How it showed up</th>
+              <th scope="col">The pin</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="The opening">When to execute a one-off action</td>
+              <td data-label="How it showed up">The same plan booked the action in different years across runs; an early-vs-late choice swung every downstream projection.</td>
+              <td data-label="The pin"><span class="pin">Default the timing by rule</span> and surface it as a first-class field, so it's chosen once, on purpose.</td>
+            </tr>
+            <tr>
+              <td data-label="The opening">Which option to recommend when several tie</td>
+              <td data-label="How it showed up">Among near-equal options the pick wandered run to run and sometimes contradicted the client's own stated priority.</td>
+              <td data-label="The pin"><span class="pin">An explicit, ordered tie-break:</span> stated objective, then downside protection, then expected value.</td>
+            </tr>
+            <tr>
+              <td data-label="The opening">How a coarse category maps to a fine-grained table</td>
+              <td data-label="How it showed up">One input bucket resolved to different reference rows across runs, quietly shifting a core assumption and the headline number with it.</td>
+              <td data-label="The pin"><span class="pin">A pinned lookup;</span> anything unmapped raises an error instead of guessing a plausible row.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin-top:1.4rem;">Pin one, re-calibrate, watch the mode-share snap to 100% and the coefficient of variation collapse toward zero. Then the next factor, previously hidden under the first, steps into view. Peel, measure, pin, repeat.</p>
+    </section>
+
+    <section>
+      <span class="snum">08 &middot; The exception</span>
+      <h2>One of them wasn't a bug at all</h2>
+      <p>The last unstable profile resisted every pin, because it was a different animal. Its input was <strong>genuinely missing a value</strong> the task needed: a brief mentioned a cost but named no figure. Some runs invented a reasonable number; others declined to invent and modeled nothing. That fork swung the whole result, and no amount of specification can pin it, because the information simply isn't there.</p>
+      <p>This is the distinction worth carrying away: an <strong>unpinned mapping</strong> is an engineering fix (write the rule). A <strong>missing input</strong> is a product decision (refuse to fabricate and surface it, or go capture the value at intake). Conflating the two sends you writing rules that can't help. I flagged it, and deliberately left it open.</p>
+    </section>
+
+    <section>
+      <span class="snum">09 &middot; Closing the loop</span>
+      <h2>Re-baseline, then prove it</h2>
+      <p>Some fixes correctly <em>changed</em> the recommendation. That's not drift, it's progress. But it means the old golden runs are wrong now. So the fixes earned a new <strong>baseline epoch</strong>, versioned, so the trend line doesn't falsely lurch when you improve the thing on purpose. Old history stays attributed to the old baseline; new runs measure against the new one.</p>
+      <p>And then the step it's tempting to skip: an independent confirmation run against the fresh baselines.</p>
+      <blockquote>A baseline you can't reproduce isn't a baseline. It's a screenshot.</blockquote>
+      <p>The confirmation cycle came back reproducing every golden to the last digit. Decision stability went from two-of-five to five-of-five; the suite flipped from red to green; the unexplained-drift count sat at zero. The workflow finally held still.</p>
+    </section>
+
+  </div>
+
+  <div class="band">
+    <div class="col" style="padding-top:0;padding-bottom:0;">
+      <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
+      <h2 style="margin-bottom:1.6rem;">What I'd bring to the next agent system</h2>
+    </div>
+    <div class="col">
+      <ol class="takes">
+        <li><div class="body"><h4>Measure stability before accuracy</h4><p>Truth is expensive to grade and often undefined. "Does it hold across runs" is cheap, needs no labels, and is frequently the real failure hiding under "is it right".</p></div></li>
+        <li><div class="body"><h4>The ruler must not drift with what it measures</h4><p>Keep the measurement layer deterministic and model-free, if your use case allows for it.</p></div></li>
+        <li><div class="body"><h4>Seed the stochastic core</h4><p>When identical inputs give identical numbers, every difference between runs is signal. You stop arguing about whether a change is real and start asking what caused it.</p></div></li>
+        <li><div class="body"><h4>Put a categorical on top</h4><p>"Did the decision hold?" reads in a glance. A wall of graded numbers doesn't. Lead with the verdict; keep the detail one level down.</p></div></li>
+        <li><div class="body"><h4>One root cause, one failure</h4><p>Attribute the cascade to the single flip that caused it. A dashboard that reports fifteen symptoms of one bug is a dashboard nobody trusts.</p></div></li>
+        <li><div class="body"><h4>Measure the margin, not just the outcome</h4><p>A flip inside a dead heat is expected; a flip away from a clear winner is an alarm. Only the closeness of the race tells the two apart.</p></div></li>
+        <li><div class="body"><h4>Calibration turns flakiness into a coordinate</h4><p>Run K times in a fixed state; mode-share and variance convert "it's flaky" into a located, fixable fact.</p></div></li>
+        <li><div class="body"><h4>Most agent drift is an unpinned degree of freedom</h4><p>The model is usually improvising faithfully in a gap the spec left. The fix is a deterministic rule, not a bigger model.</p></div></li>
+        <li><div class="body"><h4>Separate unpinned mappings from missing inputs</h4><p>One you pin with a rule. The other is a product decision: refuse to fabricate and surface it. Don't write rules for information that isn't there.</p></div></li>
+        <li><div class="body"><h4>Version baselines; reproduce before you trust</h4><p>An intentional, correct change earns a new baseline epoch so trends don't lurch. And a baseline you can't independently reproduce isn't one.</p></div></li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>
+    <div class="col">
+      <p>The satisfying part wasn't the green dashboard. It was watching a fuzzy, hand-wavy worry, "the agent seems inconsistent", resolve, factor by factor, into a short list of named openings in the spec, each with a rule next to it. The workflow didn't get smarter. It got <em>specified</em>.</p>
+      <p class="sig">Field notes &middot; No. 05 &middot; built pair-programming with Claude Code &middot; details generalized</p>
+    </div>
+  </footer>
+</main>
+
+<script>
+  (function () {
+    var canvas = document.getElementById("trace");
+    if (!canvas || !canvas.getContext) return;
+    var ctx = canvas.getContext("2d");
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // seeded PRNG (mulberry32) — on theme: the trace itself is reproducible
+    function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+    function tokens(){
+      var s = getComputedStyle(document.documentElement);
+      return {
+        drift: s.getPropertyValue("--drift").trim() || "#bd7714",
+        accent: s.getPropertyValue("--accent").trim() || "#0c7c88",
+        stable: s.getPropertyValue("--stable").trim() || "#2f8f63",
+        grid: s.getPropertyValue("--hairline").trim() || "#d3dbdf",
+        faint: s.getPropertyValue("--faint").trim() || "#8695a0"
+      };
+    }
+
+    var W = 0, H = 0, dpr = 1, pts = [];
+    function build(){
+      var rect = canvas.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = Math.max(320, rect.width); H = 190;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var rnd = mulberry32(20260709);
+      var N = Math.round(W / 3.2);
+      pts = [];
+      var mid = H * 0.52;
+      // pre-jitter values, smoothed, with an envelope that decays left->right
+      var raw = [];
+      for (var i=0;i<N;i++) raw.push(rnd()*2-1);
+      for (var i=0;i<N;i++){
+        var t = i/(N-1);
+        var env = Math.pow(1 - t, 1.7);              // drift high at left, ~0 at right
+        // smooth the raw noise with neighbours
+        var a = raw[i], b = raw[Math.max(0,i-1)], c = raw[Math.min(N-1,i+1)];
+        var sm = (a*0.5 + b*0.25 + c*0.25);
+        var wobble = sm + 0.35*Math.sin(t*34 + raw[0]*6);
+        var y = mid - wobble * env * (H*0.34);
+        var x = t * W;
+        pts.push([x, y]);
+      }
+    }
+
+    function draw(progress){
+      var c = tokens();
+      ctx.clearRect(0,0,W,H);
+      var mid = H * 0.52;
+
+      // faint grid
+      ctx.strokeStyle = c.grid; ctx.globalAlpha = 0.55; ctx.lineWidth = 1;
+      for (var gx=0; gx<=W; gx+=W/12){ ctx.beginPath(); ctx.moveTo(Math.round(gx)+.5,0); ctx.lineTo(Math.round(gx)+.5,H); ctx.stroke(); }
+      for (var gy=0; gy<=H; gy+=H/4){ ctx.beginPath(); ctx.moveTo(0,Math.round(gy)+.5); ctx.lineTo(W,Math.round(gy)+.5); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+
+      // tolerance band around the settled line
+      ctx.fillStyle = c.stable; ctx.globalAlpha = 0.10;
+      ctx.fillRect(0, mid-10, W, 20);
+      ctx.globalAlpha = 0.55; ctx.strokeStyle = c.stable; ctx.setLineDash([4,5]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, mid+.5); ctx.lineTo(W, mid+.5); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+      // the trace, drawn up to progress, colored drift -> accent -> stable
+      var grad = ctx.createLinearGradient(0,0,W,0);
+      grad.addColorStop(0, c.drift);
+      grad.addColorStop(0.5, c.accent);
+      grad.addColorStop(1, c.stable);
+      ctx.strokeStyle = grad; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.lineCap = "round";
+      var last = Math.max(1, Math.floor(pts.length * progress));
+      ctx.beginPath();
+      for (var i=0;i<last;i++){ var p = pts[i]; if(i===0) ctx.moveTo(p[0],p[1]); else ctx.lineTo(p[0],p[1]); }
+      ctx.stroke();
+
+      // leading marker
+      var lead = pts[Math.min(last-1, pts.length-1)];
+      var settled = progress > 0.985;
+      ctx.beginPath();
+      ctx.fillStyle = settled ? c.stable : c.accent;
+      ctx.globalAlpha = settled ? 0.18 : 0.22;
+      ctx.arc(lead[0], lead[1], settled ? 9 : 6, 0, Math.PI*2); ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.fillStyle = settled ? c.stable : c.accent;
+      ctx.arc(lead[0], lead[1], 3.2, 0, Math.PI*2); ctx.fill();
+    }
+
+    var start = null, DUR = 1750;
+    function frame(ts){
+      if (start === null) start = ts;
+      var t = Math.min(1, (ts - start) / DUR);
+      var eased = 1 - Math.pow(1 - t, 3);
+      draw(eased);
+      if (t < 1) requestAnimationFrame(frame);
+    }
+
+    function run(){ build(); if (reduce) { draw(1); } else { start = null; requestAnimationFrame(frame); } }
+    run();
+
+    var rt;
+    window.addEventListener("resize", function(){ clearTimeout(rt); rt = setTimeout(run, 180); });
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    (mq.addEventListener ? mq.addEventListener("change", function(){ draw(1); }) : null);
+    // redraw settled state if the in-page theme toggle flips data-theme
+    new MutationObserver(function(){ draw(1); }).observe(document.documentElement, { attributes:true, attributeFilter:["data-theme"] });
+  })();
+</script>
+</body>
+</html>

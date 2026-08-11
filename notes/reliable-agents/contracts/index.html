@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Field note No. 01: the agent harness — strict JSON schemas as hand-off contracts, cross-stage consistency checks, inspectable per-stage artifacts, and deterministic math pinned in callable code.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Contracts All the Way Down">
+<meta property="og:description" content="Field note No. 01: the agent harness — strict JSON schemas as hand-off contracts, cross-stage consistency checks, inspectable per-stage artifacts, and deterministic math pinned in callable code.">
+<meta name="twitter:card" content="summary_large_image">
+<style>html{-webkit-text-size-adjust:100%}img,canvas{max-width:100%}</style>
+<title>Contracts All the Way Down</title>
+
+<style>
+  :root {
+    --ground: #eef1f2;
+    --surface: #f9fbfb;
+    --surface-2: #e7ecee;
+    --ink: #16232d;
+    --muted: #566571;
+    --faint: #8695a0;
+    --hairline: #d3dbdf;
+    --accent: #0c7c88;
+    --accent-ink: #095e67;
+    --stable: #2f8f63;
+    --drift: #bd7714;
+    --stable-wash: rgba(47,143,99,.12);
+    --drift-wash: rgba(189,119,20,.13);
+
+    --serif: "Charter", "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+    --fs-eyebrow: .72rem;
+    --fs-body: 1.08rem;
+    --fs-small: .92rem;
+    --fs-h3: 1.32rem;
+    --fs-h2: clamp(1.55rem, 1.15rem + 1.7vw, 2.15rem);
+    --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
+    --fs-title: clamp(2.5rem, 1.5rem + 4.6vw, 4.4rem);
+
+    /* one measure: hero, prose, figures and tables share the same two edges */
+    --col: 46rem;
+    --wide: var(--col);
+    --radius: 4px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0c141a; --surface: #121d25; --surface-2: #16232c;
+      --ink: #dbe4e9; --muted: #8598a4; --faint: #61727e; --hairline: #26343d;
+      --accent: #35b2bd; --accent-ink: #6fd3dc; --stable: #52bd88; --drift: #d79a41;
+      --stable-wash: rgba(82,189,136,.14); --drift-wash: rgba(215,154,65,.15);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #eef1f2; --surface: #f9fbfb; --surface-2: #e7ecee;
+    --ink: #16232d; --muted: #566571; --faint: #8695a0; --hairline: #d3dbdf;
+    --accent: #0c7c88; --accent-ink: #095e67; --stable: #2f8f63; --drift: #bd7714;
+    --stable-wash: rgba(47,143,99,.12); --drift-wash: rgba(189,119,20,.13);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0c141a; --surface: #121d25; --surface-2: #16232c;
+    --ink: #dbe4e9; --muted: #8598a4; --faint: #61727e; --hairline: #26343d;
+    --accent: #35b2bd; --accent-ink: #6fd3dc; --stable: #52bd88; --drift: #d79a41;
+    --stable-wash: rgba(82,189,136,.14); --drift-wash: rgba(215,154,65,.15);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: var(--serif); font-size: var(--fs-body); line-height: 1.68;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  .col { max-width: var(--col); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+  .wide { max-width: var(--wide); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+
+  .eyebrow { font-family: var(--mono); font-size: var(--fs-eyebrow); letter-spacing: .22em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; }
+
+  header.hero {
+    border-bottom: 1px solid var(--hairline);
+    padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 4vw, 2.75rem);
+    background:
+      radial-gradient(120% 80% at 88% -10%, var(--stable-wash), transparent 60%),
+      radial-gradient(90% 70% at 4% 0%, var(--drift-wash), transparent 55%);
+  }
+  .hero .kicker { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.5rem; }
+  .hero .kicker .rule { height: 1px; flex: 1; background: var(--hairline); }
+  h1 { font-family: var(--sans); font-weight: 800; font-size: var(--fs-title); line-height: 1.02; letter-spacing: -.028em; margin: 0 0 .7rem; text-wrap: balance; }
+  .dek { font-size: var(--fs-dek); color: var(--muted); line-height: 1.5; margin: 0 0 1.9rem; max-width: 35rem; text-wrap: pretty; }
+  .meta { font-family: var(--mono); font-size: .74rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; }
+
+  figure.space { position: relative; margin: clamp(1.75rem, 4vw, 2.75rem) 0 0; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+  figure.space .plot { position: relative; }
+  figure.space canvas { display: block; width: 100%; height: 210px; }
+  figure.space figcaption { border-top: 1px solid var(--hairline); font-family: var(--mono); font-size: .72rem; letter-spacing: .02em; color: var(--muted); padding: .7rem 1rem; background: var(--surface-2); }
+
+  main { padding-block: clamp(2.5rem, 6vw, 4rem); }
+  section { padding-block: clamp(1.5rem, 4vw, 2.5rem); }
+  .snum { font-family: var(--mono); font-size: var(--fs-eyebrow); letter-spacing: .18em; text-transform: uppercase; color: var(--accent-ink); display: block; margin-bottom: .55rem; }
+  h2 { font-family: var(--sans); font-weight: 750; font-size: var(--fs-h2); line-height: 1.1; letter-spacing: -.02em; margin: 0 0 1rem; text-wrap: balance; }
+  h3 { font-family: var(--sans); font-weight: 700; font-size: var(--fs-h3); letter-spacing: -.01em; margin: 2rem 0 .6rem; }
+  p { margin: 0 0 1.15rem; }
+  .lead { font-size: 1.16rem; color: var(--ink); }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  em.term { font-style: normal; font-family: var(--mono); font-size: .9em; color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 9%, transparent); padding: .05em .35em; border-radius: 3px; }
+
+  .drop::first-letter { font-family: var(--sans); font-weight: 800; font-size: 3.3em; line-height: .82; float: left; padding: .04em .12em 0 0; color: var(--accent); }
+
+  blockquote { margin: 2.2rem 0; padding-left: 1.15rem; border-left: 3px solid var(--accent); font-family: var(--sans); font-weight: 600; font-size: clamp(1.25rem, 1.05rem + 1vw, 1.6rem); line-height: 1.3; letter-spacing: -.015em; color: var(--ink); text-wrap: balance; }
+
+  /* code snippet */
+  .code { overflow-x: auto; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--radius); margin: 1.6rem 0; }
+  .code pre { margin: 0; padding: 1.1rem 1.2rem; font-family: var(--mono); font-size: .84rem; line-height: 1.65; color: var(--ink); }
+  .code .cm { color: var(--faint); }
+  .code .ky { color: var(--accent-ink); }
+  .code .ok { color: var(--stable); font-weight: 600; }
+  .code .no { color: var(--drift); font-weight: 600; }
+
+  /* contrast cards */
+  .contrast { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.6rem 0; }
+  @media (max-width: 34rem) { .contrast { grid-template-columns: 1fr; } }
+  .card { border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); padding: 1.15rem 1.25rem 1.3rem; border-top-width: 3px; }
+  .card.bad { border-top-color: var(--drift); }
+  .card.good { border-top-color: var(--stable); }
+  .card .role { font-family: var(--mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; }
+  .card.bad .role { color: var(--drift); }
+  .card.good .role { color: var(--stable); }
+  .card h4 { font-family: var(--sans); font-size: 1.08rem; font-weight: 700; letter-spacing: -.01em; margin: .5rem 0 .45rem; }
+  .card p { font-size: var(--fs-small); color: var(--muted); margin: 0; line-height: 1.5; }
+
+  .band { background: var(--surface-2); border-block: 1px solid var(--hairline); padding-block: clamp(2rem, 5vw, 3.25rem); }
+
+  .takes { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; counter-reset: t; }
+  .takes li { background: var(--surface); padding: 1.3rem 1.4rem 1.4rem; display: grid; grid-template-columns: 2.4rem 1fr; gap: .4rem 1rem; align-items: start; counter-increment: t; }
+  .takes li::before { content: counter(t, decimal-leading-zero); font-family: var(--mono); font-size: .8rem; font-weight: 600; color: var(--accent); padding-top: .28rem; letter-spacing: .05em; }
+  .takes h4 { font-family: var(--sans); font-size: 1.06rem; font-weight: 700; letter-spacing: -.01em; margin: .12rem 0 .3rem; color: var(--ink); }
+  .takes p { font-size: var(--fs-small); color: var(--muted); margin: 0; line-height: 1.5; }
+  .takes .body { grid-column: 2; }
+
+  footer { border-top: 1px solid var(--hairline); padding-block: 2.5rem 3.5rem; color: var(--muted); }
+  footer p { font-size: var(--fs-small); margin: 0 0 .6rem; }
+  footer .sig { font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+  hr.tick { border: 0; height: 1px; background: var(--hairline); margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+</style>
+<script src="../../../assets/site.js"></script>
+</head>
+<body>
+<div style="border-bottom:1px solid var(--hairline);"><div style="max-width:var(--wide,58rem);margin-inline:auto;padding:.7rem clamp(1.25rem,5vw,2rem);font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;display:flex;justify-content:space-between;gap:1rem;"><a href="../" style="color:var(--muted);text-decoration:none;">&larr; The series</a><a href="../../../" style="color:var(--muted);text-decoration:none;">yingzhiva.github.io</a></div></div>
+<header class="hero">
+  <div class="wide">
+    <div class="kicker">
+      <span class="eyebrow">Field Notes &middot; No. 01 &middot; The Harness</span>
+      <span class="rule"></span>
+    </div>
+    <h1>Contracts All the Way Down</h1>
+    <p class="dek">A five-stage chain of language-model agents is a black box with a black box inside it. This is the plumbing that made it inspectable: a strict schema at every hand-off, a saved artifact at every boundary, and the arithmetic pinned in code the agent only calls.</p>
+    <div class="meta">
+      <span>Field note</span><span>&middot;</span><span>~8 min read</span><span>&middot;</span><span>Details generalized</span>
+    </div>
+
+    <figure class="space" aria-label="A five-stage pipeline. Between each stage sits a schema gate, and each stage emits a JSON artifact. A pulse travels left to right, validating each hand-off and lighting each artifact as it passes.">
+      <div class="plot">
+        <canvas id="pipe" width="1160" height="420"></canvas>
+      </div>
+      <figcaption>Five stages. Between each, a schema contract; beneath each, the JSON artifact it wrote to disk. Nothing moves downstream until the hand-off validates.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+
+    <section>
+      <p class="lead drop">This series is about the discipline that made a chain of language-model agents trustworthy, and it opens with the layer everything else stands on: the harness. By default, such a pipeline gives you no way to see where or why it went wrong. Each stage passes the next a slab of text, the next stage interprets it however it likes, and when the final answer comes out wrong you get to re-read a seventeen-minute transcript looking for the moment it went sideways. This note is about the harness that replaced all of that with something legible, and the single idea underneath it: wherever there was an implicit assumption, I put an explicit contract.</p>
+    </section>
+
+    <hr class="tick" />
+
+    <section>
+      <span class="snum">01 &middot; The hand-off</span>
+      <h2>A strict schema at every seam</h2>
+      <p>Between two stages, an unvalidated blob of JSON is just a rumor. The next stage <em>believes</em> it, but nobody checked. So every hand-off got a <strong>strict schema</strong> as its contract: required fields, exact types, value patterns, and the part that earns its keep: <em class="term">additionalProperties: false</em>, so an unexpected field is an error, not a shrug. A stage's output is validated the instant it's produced, against the contract the next stage relies on.</p>
+
+      <div class="code" role="img" aria-label="Example: a stage-3 output JSON validated against its schema, strict mode, unknown fields rejected.">
+<pre><span class="cm"># stage_3.output.json — written, validated, then handed on</span>
+{
+  <span class="ky">"summary"</span>: { <span class="ky">"net"</span>: 48200, <span class="ky">"unit"</span>: "CHF" },
+  <span class="ky">"items"</span>:   [ { <span class="ky">"kind"</span>: "A", <span class="ky">"value"</span>: 31000 }, ... ],
+  <span class="ky">"checks"</span>:  { <span class="ky">"balanced"</span>: true }
+}
+
+<span class="ok">&check; valid</span> &mdash; stage_3.schema.json  <span class="cm">·  strict: unknown fields rejected</span></pre>
+      </div>
+
+      <p>The value isn't the validation for its own sake, it's <em>where</em> the failure lands. Without a contract, a slightly-wrong field slips through, three stages compound on it, and the damage surfaces at the very end as a plausible-looking wrong answer with no return address. With one, the run stops at the boundary that produced the fault, loudly, pointing at itself.</p>
+      <blockquote>Between two agents, an unvalidated JSON is just a rumor.</blockquote>
+
+      <h3>Shape is necessary, but not sufficient</h3>
+      <p>A schema proves each hand-off is well-formed. It can't prove two well-formed hand-offs <em>agree</em>. One stage can emit a perfectly valid number that a later stage never expected and no per-stage schema will say a word. So the contracts don't stop at shape. Before the final stage assembles the report, a preflight re-checks that the stages actually reconcile: that a figure computed in one place matches the one consumed in another; that the balances carried forward are the projected ones, not today's. These are checks on <em>meaning</em>, not form. They catch the bug a schema is blind to: everyone honored the contract, and they still disagree.</p>
+      <blockquote>A schema says each hand-off is well-formed. It can't say two well-formed hand-offs agree.</blockquote>
+    </section>
+
+    <section>
+      <span class="snum">02 &middot; The savepoint</span>
+      <h2>Every boundary writes to disk</h2>
+      <p>Because each stage emits its contract-checked JSON <strong>to a file</strong>, a run isn't an event that happens and vanishes, it leaves a trail of savepoints. When a final answer looked wrong, I stopped re-reading transcripts. I opened the intermediate artifacts and diffed them against a known-good run, boundary by boundary, until I found the first one that diverged.</p>
+      <p>That stage owns the bug. Everything downstream of it is just faithfully compounding an error it inherited. The search collapses from "somewhere in seventeen minutes of reasoning" to "the first artifact that's wrong." It's a move that runs through this whole series: localize the blame by construction.</p>
+      <blockquote>The first artifact that's wrong is the stage that's wrong.</blockquote>
+    </section>
+
+    <section>
+      <span class="snum">03 &middot; The arithmetic</span>
+      <h2>The model decides; the code computes</h2>
+      <p>The largest source of silent variation wasn't reasoning at all, it was letting the agent <em>re-derive</em> deterministic calculations on the fly. Ask a model to redo the same arithmetic on each run and it will write it a little differently each time: a rounding choice here, a reordered step there, and the number wanders for reasons no transcript will confess.</p>
+      <p>So every deterministic calculation was written down once, as a tested function in a library. The agent's job shrank to the part it's genuinely good at, which is reading messy input, gathering the right values, deciding <em>what</em> to compute, and the arithmetic moved to the part of the system that's good at it: code that returns the same answer every time and lives in one place you can read, test, and fix.</p>
+
+      <div class="contrast">
+        <div class="card bad">
+          <span class="role">Instead of</span>
+          <h4>The model as calculator</h4>
+          <p>The agent re-derives each calculation per run. It phrases the math a little differently every time, the number drifts, and nothing tells you which run was right.</p>
+        </div>
+        <div class="card good">
+          <span class="role">This</span>
+          <h4>The model as caller</h4>
+          <p>Each calculation written once, tested, and called. Same inputs, same output, every run, plus a single place to inspect and correct the logic.</p>
+        </div>
+      </div>
+
+      <p>It's the same contract idea again, pointed inward: a tested function is a promise about the math, the way a schema is a promise about the shape. The agent orchestrates; it doesn't improvise the parts that were never supposed to vary.</p>
+      <blockquote>Judgment is the agent's job. Arithmetic is the code's.</blockquote>
+    </section>
+
+    <section>
+      <span class="snum">04 &middot; Why it's the floor</span>
+      <h2>None of the other notes work without this</h2>
+      <p>The harness is the least glamorous thing I built and the one everything else stands on. The stability eval this series ends on can only diff two runs because each stage leaves a machine-readable artifact behind. The complexity-vector curriculum can only blame one axis once it can first blame one stage. Reproducibility &mdash; "same input, same output," the precondition for measuring anything &mdash; exists only because the math lives in seeded, tested code instead of in the model's head.</p>
+      <p>Contracts made the seams visible. Savepoints made failures addressable. Moving the computation into code made the numbers mean something.</p>
+    </section>
+
+  </div>
+
+  <div class="band">
+    <div class="col" style="padding-top:0;padding-bottom:0;">
+      <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
+      <h2 style="margin-bottom:1.6rem;">What I'd wire into any agent pipeline</h2>
+    </div>
+    <div class="col">
+      <ol class="takes">
+        <li><div class="body"><h4>Put a strict schema on every hand-off</h4><p>Required fields, exact types, and no unknown fields. The contract catches malformed output at the boundary that produced it, not three stages later.</p></div></li>
+        <li><div class="body"><h4>Fail loud upstream, not quiet downstream</h4><p>A schema violation at the seam beats a plausible-looking wrong answer at the end. Loud-and-early has a return address; quiet-and-late doesn't.</p></div></li>
+        <li><div class="body"><h4>Check that stages agree, not just that each is valid</h4><p>Shape contracts catch a malformed hand-off; a cross-stage consistency pass catches two well-formed stages that quietly contradict each other. Validate meaning, not only form.</p></div></li>
+        <li><div class="body"><h4>Persist every stage's output</h4><p>Write each contract-checked artifact to disk. A run then leaves a trail of savepoints instead of vanishing when it finishes.</p></div></li>
+        <li><div class="body"><h4>Debug by diffing artifacts, not re-reading transcripts</h4><p>Compare intermediate outputs against a known-good run. The first artifact that diverges names the stage that owns the bug.</p></div></li>
+        <li><div class="body"><h4>Move deterministic math into tested code</h4><p>Write each calculation once, as a function. The agent gathers inputs and calls it. It never re-derives the parts that were never meant to vary.</p></div></li>
+        <li><div class="body"><h4>Let the model decide, let code compute</h4><p>Give judgment and messy-input reading to the agent; give repeatable arithmetic to the function. Each does the half it's good at.</p></div></li>
+        <li><div class="body"><h4>The harness is the foundation, not the feature</h4><p>Contracts, savepoints, and computation-in-code are unglamorous. But they're what make stability measurable and failures localizable at all.</p></div></li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>
+    <div class="col">
+      <p>I spent the flashy hours on evals and test curricula, but this is the note I'd hand a past version of myself first. Give the pipeline seams you can see, boundaries you can save, and math that doesn't move,  then the interesting problems become tractable.</p>
+      <p class="sig">Field notes &middot; No. 01 &middot; built pair-programming with Claude Code &middot; details generalized</p>
+    </div>
+  </footer>
+</main>
+
+<script>
+  (function () {
+    var canvas = document.getElementById("pipe");
+    if (!canvas || !canvas.getContext) return;
+    var ctx = canvas.getContext("2d");
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    var N = 5;
+    function tokens() {
+      var s = getComputedStyle(document.documentElement);
+      return {
+        accent: s.getPropertyValue("--accent").trim() || "#0c7c88",
+        stable: s.getPropertyValue("--stable").trim() || "#2f8f63",
+        grid:   s.getPropertyValue("--hairline").trim() || "#d3dbdf",
+        muted:  s.getPropertyValue("--muted").trim() || "#566571",
+        surface:s.getPropertyValue("--surface").trim() || "#f9fbfb",
+        faint:  s.getPropertyValue("--faint").trim() || "#8695a0"
+      };
+    }
+
+    var W = 0, H = 210, dpr = 1, padX = 46, nodeY = 78, r = 15;
+    function resize() {
+      var rect = canvas.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = Math.max(320, rect.width);
+      canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function nx(i) { return padX + i * (W - 2 * padX) / (N - 1); }
+
+    function rrect(x, y, w, h, rad) {
+      ctx.beginPath();
+      ctx.moveTo(x + rad, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rad);
+      ctx.arcTo(x + w, y + h, x, y + h, rad);
+      ctx.arcTo(x, y + h, x, y, rad);
+      ctx.arcTo(x, y, x + w, y, rad);
+      ctx.closePath();
+    }
+    function check(cx, cy, s, color) {
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(cx - s * .38, cy + s * .02);
+      ctx.lineTo(cx - s * .08, cy + s * .32);
+      ctx.lineTo(cx + s * .42, cy - s * .3);
+      ctx.stroke();
+    }
+
+    function draw(prog) {
+      var c = tokens();
+      ctx.clearRect(0, 0, W, H);
+      // pulse position along the chain, prog in [0,1] over N-1 segments
+      var f = prog * (N - 1);
+      var pulseX = nx(Math.min(N - 1, Math.floor(f))) +
+                   (f - Math.floor(f)) * ((N > 1) ? (nx(1) - nx(0)) : 0);
+      if (f >= N - 1) pulseX = nx(N - 1);
+
+      // connectors
+      for (var i = 0; i < N - 1; i++) {
+        var x1 = nx(i) + r, x2 = nx(i + 1) - r;
+        ctx.strokeStyle = c.grid; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x1, nodeY); ctx.lineTo(x2, nodeY); ctx.stroke();
+        // traversed portion in stable
+        var reachedX = Math.max(x1, Math.min(x2, pulseX));
+        if (pulseX > x1) {
+          ctx.strokeStyle = c.stable; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(x1, nodeY); ctx.lineTo(reachedX, nodeY); ctx.stroke();
+        }
+        // schema gate at midpoint
+        var gx = (nx(i) + nx(i + 1)) / 2, gs = 15, validated = pulseX >= gx;
+        ctx.fillStyle = c.surface;
+        rrect(gx - gs / 2, nodeY - gs / 2, gs, gs, 3); ctx.fill();
+        ctx.strokeStyle = validated ? c.stable : c.grid; ctx.lineWidth = 1.5;
+        rrect(gx - gs / 2, nodeY - gs / 2, gs, gs, 3); ctx.stroke();
+        if (validated) check(gx, nodeY, gs * .5, c.stable);
+        else {
+          ctx.fillStyle = c.faint; ctx.font = "600 9px " + "ui-monospace, monospace";
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("{ }", gx, nodeY + .5);
+        }
+      }
+
+      // artifacts under each node + nodes
+      for (var n = 0; n < N; n++) {
+        var x = nx(n), reached = pulseX >= x - 0.5;
+        // artifact card
+        var aw = 26, ah = 30, ax = x - aw / 2, ay = nodeY + 34;
+        ctx.fillStyle = reached ? "transparent" : "transparent";
+        rrect(ax, ay, aw, ah, 3);
+        ctx.fillStyle = reached ? (c.stable) : c.surface;
+        ctx.globalAlpha = reached ? 0.10 : 1; ctx.fill(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = reached ? c.stable : c.grid; ctx.lineWidth = 1.25;
+        rrect(ax, ay, aw, ah, 3); ctx.stroke();
+        // little text lines inside the artifact
+        ctx.strokeStyle = reached ? c.stable : c.faint; ctx.globalAlpha = reached ? .85 : .5; ctx.lineWidth = 1.4;
+        for (var L = 0; L < 3; L++) {
+          var ly = ay + 8 + L * 6, lw = (L === 2 ? aw * .4 : aw * .6);
+          ctx.beginPath(); ctx.moveTo(ax + 5, ly); ctx.lineTo(ax + 5 + lw, ly); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+
+        // node
+        ctx.beginPath(); ctx.fillStyle = c.surface; ctx.arc(x, nodeY, r, 0, Math.PI * 2); ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = reached ? c.stable : c.accent;
+        ctx.beginPath(); ctx.arc(x, nodeY, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = reached ? c.stable : c.accent;
+        ctx.font = "600 12px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(String(n + 1), x, nodeY + .5);
+      }
+
+      // pulse
+      if (prog > 0 && prog < 1) {
+        ctx.beginPath(); ctx.fillStyle = c.accent; ctx.globalAlpha = .22; ctx.arc(pulseX, nodeY, 8, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.fillStyle = c.accent; ctx.arc(pulseX, nodeY, 3.4, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    var start = null, DUR = 2600, HOLD = 900, cycle = DUR + HOLD;
+    function frame(ts) {
+      if (start === null) start = ts;
+      var e = (ts - start) % cycle;
+      var prog = e < DUR ? e / DUR : 1;
+      var teased = prog >= 1 ? 1 : 1 - Math.pow(1 - prog, 2);
+      draw(teased);
+      requestAnimationFrame(frame);
+    }
+    function run() { resize(); if (reduce) draw(1); else { start = null; requestAnimationFrame(frame); } }
+    run();
+
+    var rt;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(run, 180); });
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", function () { if (reduce) draw(1); });
+    new MutationObserver(function () { if (reduce) draw(1); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  })();
+</script>
+</body>
+</html>
