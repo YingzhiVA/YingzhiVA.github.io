@@ -11,7 +11,10 @@
 <meta property="og:title" content="Modelling Who Refers · Field Notes">
 <meta property="og:description" content="Field notes from the referral analytics project: an XGBoost model built to be explained rather than to predict.">
 <meta property="og:url" content="https://yingzhiva.github.io/notes/referral-analytics/">
-<meta property="og:image" content="https://yingzhiva.github.io/og-image.png">
+<meta property="og:image" content="https://yingzhiva.github.io/notes/referral-analytics/encoder-first/leakage-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Two rows of five cross-validation blocks. Above, a single Weight-of-Evidence encoder is fitted across all five, including the block held out for validation. Below, the encoder is refitted inside each fold on the training blocks only.">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237b3fa0'/><text x='50' y='73' font-size='58' font-family='Georgia,serif' fill='white' text-anchor='middle'>◈</text></svg>">
 <script src="../../assets/site.js"></script>
@@ -91,7 +94,7 @@
     <ol class="toc">
       <li><a href="encoder-first/">
         <span class="n">01</span>
-        <span class="t"><h2>Never Fit the Encoder First</h2><p>Getting real data into the model without fooling yourself: class imbalance without reaching for resampling, Weight-of-Evidence encoding for high-cardinality categoricals, and the target leakage a pipeline exists to prevent.</p></span>
+        <span class="t"><h2>Leakage Hides in the Encoder</h2><p>Getting real data into the model without fooling yourself: class imbalance without reaching for resampling, Weight-of-Evidence encoding for high-cardinality categoricals, and the target leakage a pipeline exists to prevent.</p></span>
         <span class="go">→</span>
       </a></li>
       <li><a href="stop-tuning/">

@@ -7,15 +7,18 @@
 <meta name="author" content="Yingzhi Vilimelis Aceituno">
 <meta name="color-scheme" content="light dark">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Never Fit the Encoder First">
+<meta property="og:title" content="Leakage Hides in the Encoder">
 <meta property="og:description" content="Field note No. 01: class imbalance, Weight-of-Evidence encoding, and the target leakage a Pipeline exists to prevent.">
 <meta property="og:url" content="https://yingzhiva.github.io/notes/referral-analytics/encoder-first/">
-<meta property="og:image" content="https://yingzhiva.github.io/notes/referral-analytics/encoder-first/woe-employer-industry.png">
+<meta property="og:image" content="https://yingzhiva.github.io/notes/referral-analytics/encoder-first/leakage-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Two rows of five cross-validation blocks. Above, a single Weight-of-Evidence encoder is fitted across all five, including the block held out for validation. Below, the encoder is refitted inside each fold on the training blocks only.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://yingzhiva.github.io/notes/referral-analytics/encoder-first/woe-employer-industry.png">
+<meta name="twitter:image" content="https://yingzhiva.github.io/notes/referral-analytics/encoder-first/leakage-card.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237b3fa0'/><text x='50' y='73' font-size='58' font-family='Georgia,serif' fill='white' text-anchor='middle'>◈</text></svg>">
 <style>html{-webkit-text-size-adjust:100%}img,canvas,svg{max-width:100%}</style>
-<title>Never Fit the Encoder First</title>
+<title>Leakage Hides in the Encoder</title>
 
 <style>
   :root {
@@ -431,8 +434,8 @@
       <span class="eyebrow">Field Notes &middot; No. 01 &middot; Modelling</span>
       <span class="rule"></span>
     </div>
-    <h1>Never Fit the Encoder First</h1>
-    <p class="dek">Getting real data into an XGBoost model without fooling yourself: an imbalanced target, categorical features that resisted encoding, and the leakage trap I nearly walked into.</p>
+    <h1>Leakage Hides in the Encoder</h1>
+    <p class="dek">Getting real data into an XGBoost model: on an imbalanced target, the choices of encoding categorical features, and the importance of using a pipeline.</p>
     <div class="meta">
       <span>Field note</span>
       <span>&middot;</span>
@@ -483,7 +486,7 @@
         <text class="dg-ok-t" x="147" y="274" text-anchor="middle">refitted on train only</text>
         <text class="dg-ok-t" x="517" y="274" text-anchor="middle">refitted on train only</text>
       </svg>
-      <figcaption>Weight-of-Evidence encoding is computed <em>from the target</em>. Fit it before you cross-validate and every score in the notebook is quietly inflated. This was the lesson that cost me the most.</figcaption>
+      <figcaption>Weight-of-Evidence encoding is computed <em>from the target</em>. Fit it before you cross-validate and every score in the notebook is quietly inflated.</figcaption>
     </figure>
   </div>
 </header>
@@ -496,7 +499,7 @@
         <span class="tag">Scope</span>
         <p>Note that the primary goal of the model is not to make predictions (although it certainly could) but to learn about feature importance, i.e. the interpretation. That choice drives nearly every decision below.</p>
       </div>
-      <p class="lead drop">There is a lot of ground to cover from earning an online (however advanced) data science certificate to building your first model for a real use case. The use case here was a customer referral programme at a digital wealth manager, and the question was <em>who refers</em>: which client characteristics predict whether someone brings in another client. This note covers the first three things that tripped me up, all of them variations on the same theme: an imbalanced target, categorical features that resisted encoding, and a leakage trap that would have inflated every number I reported.</p>
+      <p class="lead drop">There is a lot of ground to cover from earning an online (however advanced) data science certificate to building your first model for a real use case. The use case here was a customer referral programme at a digital wealth manager, and the question was <em>who refers</em>: which client characteristics predict whether someone brings in another client. This note covers the three major learnings that helped me eventually obtain a performant and explainable model: class balancing, encoding differentcategorical features, and adopting leakage-proof pipeline.</p>
     </section>
 
     <hr class="tick" />
@@ -524,7 +527,7 @@ XGBClassifier(random_state=42, scale_pos_weight = scale,
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)</code></pre></div>
 
       <p>The test AUC score improved significantly and is now closer to the training score after handling the imbalance. The trade-off here is that the model precision dropped significantly in favour of recall, since we now predict more false positives. On the held-out test set that landed at <strong>recall 0.71 against precision 0.36</strong>: the model catches roughly seven referrers in ten, and is wrong about two-thirds of the clients it flags. Loop back to the business context to determine whether the trade-off is acceptable, or even desired. In my use case it was beneficial to trade a higher false positive for a lower false negative. The cost of surfacing a client who turns out not to refer is a wasted nudge, while the cost of missing one is a referral that never happens.</p>
-      <p>One further consequence is easy to miss: by reweighting the minority class during training, <code>scale_pos_weight</code> also breaks the calibration of the predicted probabilities. They come out systematically inflated towards the positive class, so a <code>predict_proba</code> output of 0.6 no longer means &ldquo;a 60% chance this client refers&rdquo;. That costs nothing if you only ever use the <em>ranking</em> (which is all ROC-AUC reads, and all SHAP needs to attribute contributions). But the moment someone downstream wants to read a score as a probability, or set a threshold from an expected-value calculation, it has to be calibrated first.</p>
+      <p>One further consequence is easy to miss: by reweighting the minority class during training, <code>scale_pos_weight</code> also breaks the calibration of the predicted probabilities. They come out systematically inflated towards the positive class, so a <code>predict_proba</code> output of 0.6 no longer means &ldquo;a 60% chance this client refers&rdquo;. That's not an issue if you only ever use the <em>ranking</em> (which is all ROC-AUC reads, and all SHAP needs to attribute contributions). But the moment someone downstream wants to read a score as a probability, or set a threshold from an expected-value calculation, it has to be calibrated first.</p>
     </section>
 
     <hr class="tick" />
@@ -549,7 +552,7 @@ enc = OrdinalEncoder(categories = [['LOW_RISK', 'MEDIUM_RISK', 'HIGH_RISK']],
                      dtype=np.int32)
 df['risk_expectation'] = enc.fit_transform(df[['risk_expectation']])</code></pre></div>
 
-      <h3>Categorical Feature w/o Intrinsic Order</h3>
+      <h3>Categorical Feature without Intrinsic Order</h3>
       <p>If there are just a handful of labels in the categorical feature, we should first consider one-hot encoding:</p>
 
       <div class="code"><span class="lang">python</span><pre><code>df = pd.get_dummies(df, columns=['feature_1', 'feature_2'],
@@ -573,14 +576,14 @@ df['risk_expectation'] = enc.fit_transform(df[['risk_expectation']])</code></pre
         <div class="eq-note">Both shares are of the class total, not of the category</div>
       </div>
 
-      <p>That last point is the one to hold on to, because it is the easiest thing in the world to get backwards. Spelled out:</p>
+      <p>Specifically:</p>
 
       <ul class="defs">
         <li><span class="k">share of events</span><span class="v">events in this category &divide; <strong>all events in the dataset</strong></span></li>
         <li><span class="k">share of non-events</span><span class="v">non-events in this category &divide; <strong>all non-events in the dataset</strong></span></li>
       </ul>
 
-      <p>Concretely, take employer industry, one of the four features I actually encoded this way. Round figures here, to keep the arithmetic visible; the real values from my model come further down. Say the dataset holds 1,700 referrers and 8,300 non-referrers, and one industry contains 270 of the former and 800 of the latter:</p>
+      <p>Take employer industry as an example, which is one of the four features I actually encoded this way. Round figures here, to keep the arithmetic visible; the real values from my model come further down. Say the dataset holds 1,700 referrers and 8,300 non-referrers, and one industry contains 270 of the former and 800 of the latter:</p>
 
       <div class="tbl-wrap" role="region" aria-label="Worked Weight-of-Evidence calculation for one illustrative industry">
         <table>
@@ -612,7 +615,6 @@ df['risk_expectation'] = enc.fit_transform(df[['risk_expectation']])</code></pre
       </div>
 
       <p>Both figures describe Industry A, but they answer different questions: 15.9% of everyone who referred works in it, against 9.6% of everyone who didn&rsquo;t. It is over-represented among referrers, so the WoE comes out positive.</p>
-      <p>The sanity check agrees, and shows why the denominators matter. Of Industry A&rsquo;s 1,070 clients, 270 referred: a 25% referral rate against a 17% base rate overall. Same conclusion, but notice that 25% is <em>not</em> any of the numbers in the calculation. The positive rate <em>within</em> a category is a different quantity from that category&rsquo;s share of all positives, and WoE is built from the latter.</p>
       <p>A positive WoE means that category is over-represented among positives relative to the overall base rate. A negative WoE means it&rsquo;s under-represented. A WoE near zero means the category carries no discriminatory information.</p>
       <p>This is useful because the encoding directly reflects the direction and magnitude of the relationship with the target, which can be very readable and interpretable.</p>
       <p>Readable in a literal sense: because the mapping is just a number per category, you can pull it back out of the fitted encoder afterwards and look at it in domain terms. Here is the one my model learned for employer industry:</p>
@@ -624,21 +626,20 @@ df['risk_expectation'] = enc.fit_transform(df[['risk_expectation']])</code></pre
         <figcaption>The fitted encoder decoded back to categories, from the synthetic run. Positive means over-represented among referrers, negative means under-represented.</figcaption>
       </figure>
 
-      <p>Two things are worth reading off it. First, the ordering is immediately interpretable without touching the model: HR, airline and manufacturing sit at the positive end, real estate and engineering at the negative end. Second, the whole spread is only about &plusmn;0.3, which is a useful reality check: no single industry is a dramatic driver on its own, and I should be sceptical of any story that leans hard on one category.</p>
+      <p>Two insights can be gleaned from this chart. First, the ordering is immediately interpretable without touching the model: HR, airline and manufacturing sit at the positive end, real estate and engineering at the negative end. Second, the whole spread is only about &plusmn;0.3, which is a useful reality check: no single industry is a dramatic driver on its own, and I should be sceptical of any story that leans hard on one category.</p>
 
       <h4>Why not XGBoost&rsquo;s native categorical support?</h4>
-      <p>A fair question, since I&rsquo;m already passing <code>tree_method='hist'</code>, and XGBoost 1.6+ will handle raw categoricals directly with <code>enable_categorical=True</code>. That would have removed the encoder entirely.</p>
-      <p>I didn&rsquo;t, and the reason is the goal stated at the top: interpretation. Native categorical splits partition the set of categories, so the feature survives as one column and global SHAP importance still works, but the <em>direction</em> is lost. Category codes have no order, so on a beeswarm plot the colour axis, which encodes low-to-high feature value, means nothing at all. WoE instead gives a numeric column that is monotone in the log-odds of the target, so the colour axis becomes readable: blue is the categories that refer less, magenta the ones that refer more. That, plus the decoded mapping above, is what the extra step buys.</p>
-      <p>If the goal were purely predictive, I&rsquo;d reach for the native support and skip all of this.</p>
+      <p>XGBoost 1.6+ handles raw categoricals directly with <code>enable_categorical=True</code>. That would have removed the encoder entirely.</p>
+      <p>I didn&rsquo;t because of the goal stated at the top: interpretation. Native categorical splits partition the set of categories, so the feature survives as one column and global SHAP importance still works, but the <em>direction</em> is lost. Category codes have no order, so on a beeswarm plot the colour axis, which encodes low-to-high feature value, means nothing at all. WoE instead gives a numeric column that increases in step with the log-odds of the target, so the colour axis becomes readable: blue is the categories that refer less, magenta the ones that refer more. That, plus the decoded mapping above, is what makesthe extra step worth it for the benefit of explanability (more on that later in the second post of this series).</p>
 
-      <h3>Collapsing Imbalanced Categorical Levels?</h3>
+      <h3>Combining categories with few observations?</h3>
       <p>Decision trees don&rsquo;t inherently struggle with rare categories; the issue is that with very small counts, a split is based on nearly no data, so it&rsquo;s statistically unreliable and prone to overfitting on noise. When you collapse rare levels into broader buckets, you&rsquo;re essentially regularizing the model by reducing variance at the cost of some bias. This is usually a good trade.</p>
       <p>However, the way you collapse matters. Lumping employer industry in &ldquo;tourism&rdquo; and &ldquo;hotel&rdquo; together makes domain sense, but purely mechanical approaches (e.g. &ldquo;combine everything with &lt; 100 samples&rdquo;) may or may not destroy meaningful signal, depending on whether a rare category is genuinely distinctive.</p>
       <p>A middle ground here is target encoding with smoothing, or weight of evidence encoding, which handles rare categories gracefully by borrowing statistical strength from the overall distribution.</p>
 
       <div class="callout warn">
         <span class="tag">Whatever your choice here</span>
-        <p><strong>Do not use the target variable (Y) to inform your collapsing decisions on the test set!</strong> (e.g. using a WoE encoding result to collapse non-contributing labels of the entire dataset.) This leads us nicely to the next topic: the pipeline.</p>
+        <p><strong>Do not use the target variable (Y) to inform your collapsing decisions on the test set!</strong> e.g. using a WoE encoding result to collapse non-contributing labels of the entire dataset. This leads us nicely to the next topic: target leakage and the using a pipeline to fight it.</p>
       </div>
     </section>
 
@@ -648,7 +649,7 @@ df['risk_expectation'] = enc.fit_transform(df[['risk_expectation']])</code></pre
       <span class="snum">03 &middot; The wiring</span>
       <h2>A Pipeline Isn&rsquo;t Convenience, It&rsquo;s Leakage Insurance</h2>
       <p>A <code>Pipeline</code> chains a sequence of transformation steps followed by a final estimator into a single object. When you call <code>pipeline.fit(X_train, y_train)</code>, it runs each step&rsquo;s <code>fit_transform</code> sequentially, passing the output of each step as the input to the next, and finally calls <code>fit</code> on the last step (the model). When you call <code>pipeline.predict(X_test)</code>, it runs each step&rsquo;s <code>transform</code> on the test data (without refitting) before passing the result to the model.</p>
-      <p>The critical benefit beyond convenience is <strong>leakage prevention</strong>. Any preprocessing step inside a <code>Pipeline</code> is refit only on training data within each cross-validation fold, never on validation data. This is the correct behaviour and is easy to get wrong when preprocessing manually outside of a pipeline, especially if you are using techniques such as target encoding and WoE.</p>
+      <p>The critical benefit beyond convenience is <strong>leakage prevention</strong>. Any preprocessing step inside a <code>Pipeline</code> is refitted only on training data within each cross-validation fold, never on validation data. This is the correct behaviour and is easy to get wrong when preprocessing manually outside of a pipeline, especially if you are using techniques such as target encoding and WoE.</p>
 
       <blockquote>Fit the encoder before you cross-validate and the fold has already seen the labels it is about to be tested on.</blockquote>
 
@@ -691,11 +692,10 @@ param_grid = {
     <div class="col">
       <ol class="takes">
         <li><div class="body"><h4>Reach for the cheap knob before the aggressive one</h4><p><code>scale_pos_weight</code> and stratified splits fixed my imbalance without touching the data. Try reweighting before resampling; you can always escalate.</p></div></li>
-        <li><div class="body"><h4>Know what the fix costs you</h4><p>Weighting bought recall and broke probability calibration. Every imbalance remedy has a price: find out what it is before someone downstream reads a score as a probability.</p></div></li>
+        <li><div class="body"><h4>Know what the fix costs you</h4><p>Weighting bought recall and broke probability calibration. Call it out in your report before someone downstream reads a score as a probability.</p></div></li>
         <li><div class="body"><h4>Convert explicitly, never implicitly</h4><p>Booleans to ints by hand, ordinal categories in an order you supply. Left alone, an encoder will sort your risk levels alphabetically and you will meet the consequences at the explanation stage.</p></div></li>
         <li><div class="body"><h4>Pick the encoding that serves the goal</h4><p>One-hot for a handful of levels, WoE when cardinality grows <em>and</em> you need to explain the model. Had I only wanted predictions, XGBoost&rsquo;s native categorical support would have been the right call.</p></div></li>
-        <li><div class="body"><h4>Decode the encoding back to domain terms</h4><p>A fitted WoE mapping pulled back out and plotted per category was the most directly useful artifact of the whole project, and the one a stakeholder could actually read.</p></div></li>
-        <li><div class="body"><h4>Assume leakage is the default</h4><p>Any transform fitted from the target (WoE, target encoding, even a collapsing decision) leaks unless it lives inside the pipeline and gets refitted per fold. The pipeline isn&rsquo;t tidiness, it&rsquo;s the mechanism.</p></div></li>
+        <li><div class="body"><h4>Assume leakage is the default</h4><p>Any transform fitted from the target (WoE, target encoding, even a collapsing decision) leaks unless it lives inside the pipeline and gets refitted per fold.</p></div></li>
         <li><div class="body"><h4>Tune the encoder and the model together</h4><p>Once both are in one pipeline, the encoder&rsquo;s own hyperparameters join the same search. Two things to optimise, one grid.</p></div></li>
       </ol>
     </div>

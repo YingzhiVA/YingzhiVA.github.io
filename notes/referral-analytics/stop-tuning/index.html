@@ -10,9 +10,12 @@
 <meta property="og:title" content="Stop Tuning, Start Reading">
 <meta property="og:description" content="Field note No. 02: judging an AUC, using fold variance to know when to stop tuning, and interpreting a SHAP summary plot.">
 <meta property="og:url" content="https://yingzhiva.github.io/notes/referral-analytics/stop-tuning/">
-<meta property="og:image" content="https://yingzhiva.github.io/notes/referral-analytics/stop-tuning/shap-summary.png">
+<meta property="og:image" content="https://yingzhiva.github.io/notes/referral-analytics/stop-tuning/fold-spread-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Two five-fold cross-validation results on a shared AUC axis. Five fold scores cluster tightly at a standard deviation of 0.005, the sampling noise floor; five more scatter widely at 0.05 around the same mean.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://yingzhiva.github.io/notes/referral-analytics/stop-tuning/shap-summary.png">
+<meta name="twitter:image" content="https://yingzhiva.github.io/notes/referral-analytics/stop-tuning/fold-spread-card.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237b3fa0'/><text x='50' y='73' font-size='58' font-family='Georgia,serif' fill='white' text-anchor='middle'>◈</text></svg>">
 <style>html{-webkit-text-size-adjust:100%}img,canvas,svg{max-width:100%}</style>
 <title>Stop Tuning, Start Reading</title>
@@ -428,7 +431,7 @@
       <span class="rule"></span>
     </div>
     <h1>Stop Tuning, Start Reading</h1>
-    <p class="dek">The model is built and leakage-safe. Now the harder questions: is this score good enough, how do I know when to stop tuning, and what did the thing actually say?</p>
+    <p class="dek">The model is built and leakage-safe. Now the harder questions: is the score good enough, how do I know when to stop tuning, and what did the model actually say?</p>
     <div class="meta">
       <span>Field note</span>
       <span>&middot;</span>
@@ -439,7 +442,7 @@
       <span>Synthetic data</span>
     </div>
 
-    <figure aria-label="Diagram comparing two five-fold cross-validation results on an AUC axis. Above, five fold scores cluster tightly around 0.81 within a narrow band, labelled converged: stop tuning. Below, five fold scores scatter widely from about 0.68 to 0.86 around the same mean, labelled unstable: keep tuning. Both rows share the same mean, so only the spread distinguishes them.">
+    <figure aria-label="Diagram comparing two five-fold cross-validation results on a shared AUC axis running from 0.60 to 0.90. Above, five fold scores cluster tightly around the mean inside a narrow band, labelled std 0.005, at the noise floor, with no instability left to detect. Below, five fold scores scatter from about 0.72 to 0.87 around the same mean, labelled std 0.05, four times the noise floor, where something beyond sampling noise is moving the scores. A dashed line runs through both rows at the shared mean, so only the spread distinguishes them.">
       <svg viewBox="0 0 660 250" aria-hidden="true" focusable="false">
         <!-- the shared mean, drawn through both rows: it is the only thing they agree on -->
         <line class="fd-mean" x1="416" y1="42" x2="416" y2="192" stroke-width="1"/>
@@ -455,7 +458,7 @@
         <circle class="fd-dot-ok" cx="416" cy="62" r="4.2"/>
         <circle class="fd-dot-ok" cx="424" cy="62" r="4.2"/>
         <circle class="fd-dot-ok" cx="432" cy="62" r="4.2"/>
-        <text class="fd-note" x="24" y="94">No instability left to detect. Further tuning answers a question the data can&rsquo;t hear.</text>
+        <text class="fd-note" x="24" y="94">No instability left to detect.</text>
 
         <line class="fd-axis" x1="24" y1="114" x2="636" y2="114" stroke-width="1"/>
 
@@ -470,7 +473,7 @@
         <circle class="fd-dot-bad" cx="416" cy="176" r="4.2"/>
         <circle class="fd-dot-bad" cx="494" cy="176" r="4.2"/>
         <circle class="fd-dot-bad" cx="568" cy="176" r="4.2"/>
-        <text class="fd-note" x="24" y="208">The model is sensitive to which rows land in which fold. Don&rsquo;t trust its SHAP values yet.</text>
+        <text class="fd-note" x="24" y="208">Something beyond sampling noise is here. Find out what before reading the SHAP values.</text>
 
         <!-- shared axis ticks -->
         <text class="fd-tick" x="24" y="238">0.60</text>
@@ -491,7 +494,7 @@
         <p>This picks up from <a href="../encoder-first/">No. 01</a>, where the target imbalance was handled with <code>scale_pos_weight</code>, the high-cardinality categoricals were Weight-of-Evidence encoded, and encoder and model were wrapped in one <code>Pipeline</code> so nothing leaks across folds.</p>
         <p>The scope note from there still applies, and matters even more here: the goal of this model is not to predict but to understand feature importance.</p>
       </div>
-      <p class="lead drop">Everything up to this point had a right answer. Handle the imbalance or don&rsquo;t; put the encoder inside the pipeline or leak. What came next had no such comfort: nobody tells you when a model is finished. The score is a number without a scale, and the temptation is to keep turning knobs until it stops moving, which can take a very long time and, as it turns out, would have taught me nothing.</p>
+      <p class="lead drop">Everything up to this point had a right answer. Handle the imbalance or don&rsquo;t; put the encoder inside the pipeline or leak. What came next had no such comfort: nobody tells you when a model is finished. The score is a number without a scale, and the temptation is to keep turning knobs, which can take a very long time and, as it turns out, would have taught me nothing.</p>
     </section>
 
     <hr class="tick" />
@@ -499,7 +502,7 @@
     <section>
       <span class="snum">01 &middot; The knobs</span>
       <h2>Model Hyperparameter Tuning</h2>
-      <p>The grid search settled at a cross-validated <strong>ROC-AUC of 0.811</strong>, and the refit pipeline scored <strong>0.798 on the held-out test set</strong>. Is that good enough? Shall I try to squeeze it higher?</p>
+      <p>The grid search settled at a cross-validated <strong>ROC-AUC of 0.811</strong>, and the refitted pipeline scored <strong>0.798 on the held-out test set</strong>. Is that good enough? Shall I try to squeeze it higher?</p>
       <p>A naive baseline would score 0.5, and production-grade models in domains like credit risk or customer behaviour typically land between 0.70 and 0.85. Scores above 0.85 on messy, self-reported behavioural data would actually warrant some suspicion: it could indicate leakage or overfitting rather than genuine signal. So 0.80 sits comfortably inside the band where I&rsquo;d expect an honest model on this kind of data to land, and the close agreement between the cross-validated and held-out figures is the more reassuring number of the two.</p>
 
       <div class="tbl-wrap" role="region" aria-label="Model scores on the synthetic run">
@@ -533,12 +536,10 @@ cv_results = pd.DataFrame(grid_search.cv_results_)
 # Get fold scores for the best parameter combination
 best_index = grid_search.best_index_
 
-# A std below 0.03 suggests stable, consistent performance across folds,
-# thus a converging model.
 print(f"\nMean AUC:  {cv_results.loc[best_index, 'mean_test_score']:.4f}")
 print(f"Std AUC:   {cv_results.loc[best_index, 'std_test_score']:.4f}")</code></pre></div>
 
-      <p>Mine came back at <strong>0.005</strong> against a mean of 0.811, with the five folds agreeing to within half a percentage point. My first instinct was to compare that against a threshold: under 0.03, call it stable. I should be honest that I picked 0.03 out of the air. There is no consensus figure for this in the literature, and there cannot be, because fold spread is not dimensionless. It depends on how many rows land in each validation fold and how rare the positive class is. A std of 0.03 on 300-row folds and 0.03 on 30,000-row folds mean opposite things.</p>
+      <p>Mine came back at <strong>0.005</strong> against a mean of 0.811, with the five folds agreeing to within half a percentage point. My first instinct was to compare that against a threshold and call it stable. However, there is no consensus figure for this in the literature, and there cannot be, because fold spread is not dimensionless. It depends on how many rows land in each validation fold and how rare the positive class is. A std of 0.03 on 300-row folds and 0.03 on 30,000-row folds mean opposite things.</p>
 
       <p>The better question is scale-free: <strong>how much spread would I expect from sampling noise alone, even from a perfectly stable model?</strong> For AUC that has a closed-form answer. The <a href="https://pubs.rsna.org/doi/10.1148/radiology.143.1.7063747" target="_blank" rel="noopener">Hanley&ndash;McNeil</a> standard error takes the AUC and the two class counts and returns the standard error you&rsquo;d get purely from having a finite sample. Because AUC is estimated from positive&ndash;negative pairs, it is governed by whichever class is scarcer.</p>
 
@@ -557,9 +558,9 @@ print(f"Std AUC:   {cv_results.loc[best_index, 'std_test_score']:.4f}")</code></
         </table>
       </div>
 
-      <p>Which is a more interesting result than my threshold would have given me, and less flattering. The observed spread is not comfortably under some limit: it sits <em>at or below the noise floor</em>. There is no room left for instability to show up in this measurement, so the honest reading is not &ldquo;the model has converged&rdquo; but &ldquo;whatever instability exists is smaller than what five folds of this size can resolve.&rdquo;</p>
+      <p>Which is a more interesting result than my threshold would have given me. The observed spread is not comfortably under some limit: it sits <em>at or below the noise floor</em>. There is no room left for instability to show up in this measurement, so the honest reading is not &ldquo;the model has converged&rdquo; but &ldquo;whatever instability exists is smaller than what five folds of this size can resolve.&rdquo;</p>
 
-      <p>The last row is the part I&rsquo;d missed entirely. A standard deviation computed from five numbers is a poor estimate of anything: the 95% interval runs from roughly 0.6&times; to 2.9&times; the value you observed. So my data cannot distinguish 0.005 from 0.014, and a test that cuts at 0.03 was only ever going to catch gross instability. It is a smoke alarm, not a thermometer.</p>
+      <p>The last row is the part I&rsquo;d missed entirely. A standard deviation computed from five numbers is a poor estimate of anything: the 95% interval runs from roughly 0.6&times; to 2.9&times; the value you observed. So my data cannot distinguish 0.005 from 0.014.</p>
 
       <blockquote>Compare the spread against the noise you&rsquo;d get anyway, not against a number you made up.</blockquote>
 
@@ -578,11 +579,13 @@ print(f"Std AUC:   {cv_results.loc[best_index, 'std_test_score']:.4f}")</code></
       <blockquote>For each observation, SHAP asks: how much did each feature contribute to pushing this prediction away from the baseline?</blockquote>
 
       <p>The <em>definition</em> is combinatorial: consider every possible subset of features, compute the model&rsquo;s prediction with and without each feature across all subsets, and average each feature&rsquo;s marginal contribution over all those combinations. That averaging is what buys the fair-allocation properties: the contributions sum exactly to the difference between the prediction and the baseline, no feature is double-counted, and features with no effect get zero attribution.</p>
-      <p>Taken literally that is 2<sup>M</sup> evaluations for M features, which is hopeless past a handful of columns. So it is worth being clear that the definition is not the algorithm. The code below calls <code>shap.TreeExplainer</code>, which for tree ensembles uses <strong>TreeSHAP</strong>: it arrives at the same values without ever enumerating the subsets, exploiting the structure of the trees to push all subsets down the branches simultaneously and bringing the cost down to roughly trees &times; leaves &times; depth&sup2;. The combinatorial story is what a SHAP value <em>means</em>; TreeSHAP is how you actually get one out of XGBoost.</p>
+      <p>Taken literally that is 2<sup>M</sup> evaluations for M features, which is hopeless past a handful of columns. So it is worth being clear that the definition is not the algorithm. The code below calls <code>shap.TreeExplainer</code>, which for tree ensembles uses <strong>TreeSHAP</strong>: it arrives at the same values without ever enumerating the subsets, exploiting the structure of the trees to push all subsets down the branches simultaneously and bringing the computational cost down.</p>
+
+      <p>That last part is worth unpacking. The trick is that all subsets can share a single walk. Each node carries a running weight for all the subsets consistent with reaching it, and at a split that weight forks: the subsets containing the split feature continue down the one branch the observation takes, while the subsets omitting it are duplicated down both, scaled by coverage.</p>
 
       <div class="callout">
         <span class="tag">Worth knowing</span>
-        <p>Called as <code>shap.TreeExplainer(model)</code> with no background dataset, TreeSHAP defaults to <code>feature_perturbation="tree_path_dependent"</code>: the reference distribution is the training coverage already recorded in the trees. The values are exact for <em>that</em> expectation. Pass a background dataset if you want the interventional one instead; the two can disagree when features are correlated.</p>
+        <p>Called as <code>shap.TreeExplainer(model)</code> with no background dataset, TreeSHAP defaults to <code>feature_perturbation="tree_path_dependent"</code>: the reference distribution is the training coverage already recorded in the trees. The values are exact for <em>that</em> expectation.</p>
       </div>
 
       <p>Either way, for a single observation the guarantee holds:</p>
@@ -661,8 +664,6 @@ shap.summary_plot(shap_values, X_transformed, max_display = 30)</code></pre></di
         <li><div class="body"><h4>Five folds barely estimate a standard deviation</h4><p>The 95% interval on &sigma; from five observations spans 0.6&times; to 2.9&times; what you measured. Treat the check as a smoke alarm for gross instability, not a precision instrument.</p></div></li>
         <li><div class="body"><h4>Let the goal set the stopping rule</h4><p>For prediction, chase the score. For interpretation, stop when the feature ranking stabilises, which happens well before the metric peaks. Know which job you are doing.</p></div></li>
         <li><div class="body"><h4>Be suspicious of a good score</h4><p>Above 0.85 on messy behavioural data is a reason to go hunting for leakage, not to celebrate. A boring number that agrees across CV and hold-out beats an impressive one that doesn&rsquo;t.</p></div></li>
-        <li><div class="body"><h4>Check what the feature counts before reading direction</h4><p><code>kyc_birth_year</code> runs backwards, so &ldquo;high value&rdquo; on the colour axis means <em>younger</em>. The plot will not warn you; only knowing your columns will.</p></div></li>
-        <li><div class="body"><h4>Know the difference between a definition and an algorithm</h4><p>SHAP is defined over every subset of features; TreeSHAP computes it without enumerating any. Confusing the two makes you think the code is doing something it isn&rsquo;t.</p></div></li>
         <li><div class="body"><h4>Corroborate across methods</h4><p>A hypothesis test and a tree ensemble independently agreeing on the &ldquo;pay it forward&rdquo; effect was worth more than either result alone. Look for the second route to the same finding.</p></div></li>
       </ol>
     </div>
@@ -672,7 +673,7 @@ shap.summary_plot(shap_values, X_transformed, max_display = 30)</code></pre></di
     <div class="col">
       <a class="nextup" href="../encoder-first/">
         <span class="lbl">Previously &middot; No. 01</span>
-        <span class="ttl">&larr; Never Fit the Encoder First</span>
+        <span class="ttl">&larr; Leakage Hides in the Encoder</span>
         <span class="sub">The imbalanced target, Weight-of-Evidence encoding for high-cardinality categoricals, and the leakage trap a Pipeline exists to prevent.</span>
       </a>
       <p style="margin-top:1.6rem;">The full notebook lives in the <a href="https://github.com/YingzhiVA/Referral_Analytics" target="_blank" rel="noopener">Referral Analytics repo</a>: cascade graph, two-proportion z-test, WoE pipeline and SHAP interpretation, all on a synthetic dataset that reproduces the schema and distributions of the original exports.</p>

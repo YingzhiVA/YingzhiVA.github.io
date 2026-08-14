@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+  og:image generator for field note No. 02.
+  Renders to notes/referral-analytics/stop-tuning/fold-spread-card.png via _og/render.sh
+
+  The SVG below is a COPY of the hero diagram in
+  notes/referral-analytics/stop-tuning/index.html. Edit one, mirror the other.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  /* light palette only: social cards render on the platform's own ground */
+  :root {
+    --ground: #f1eff4;
+    --surface: #fbfafc;
+    --surface-2: #e9e6ee;
+    --ink: #201a2b;
+    --muted: #5f5670;
+    --faint: #8d84a0;
+    --hairline: #dcd7e3;
+    --accent: #7b3fa0;
+    --accent-ink: #5f2e7d;
+    --low: #1a6fc4;
+    --high: #c62258;
+    --low-wash: rgba(26,111,196,.12);
+    --high-wash: rgba(198,34,88,.11);
+    --sans: "Ubuntu Sans", "Ubuntu", sans-serif;
+    --mono: "Ubuntu Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    background:
+      radial-gradient(120% 80% at 92% -10%, var(--high-wash), transparent 60%),
+      radial-gradient(90% 70% at 0% 0%, var(--low-wash), transparent 55%),
+      var(--ground);
+    color: var(--ink);
+    padding: 56px;
+    display: flex;
+    flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 18px;
+    line-height: 1;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 52px;
+    line-height: 1.05;
+    letter-spacing: -.028em;
+    margin-bottom: 24px;
+  }
+
+  figure {
+    width: 1064px;
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  figure svg { display: block; width: 100%; height: auto; }
+
+  .fd-head { font-family: var(--sans); font-size: 13px; font-weight: 700; fill: var(--ink); }
+  .fd-note { font-family: var(--sans); font-size: 11.5px; fill: var(--muted); }
+  .fd-tick { font-family: var(--mono); font-size: 9.5px; fill: var(--faint); }
+  .fd-axis { stroke: var(--hairline); }
+  .fd-mean { stroke: var(--faint); stroke-dasharray: 2 5; opacity: .65; }
+  .fd-dot-ok { fill: var(--accent); }
+  .fd-dot-bad { fill: var(--high); }
+  .fd-band-ok { fill: var(--low-wash); stroke: var(--accent); stroke-dasharray: 3 3; }
+  .fd-band-bad { fill: var(--high-wash); stroke: var(--high); stroke-dasharray: 3 3; }
+  .fd-verdict-ok { fill: var(--accent-ink); font-family: var(--sans); font-size: 11.5px; font-weight: 700; }
+  .fd-verdict-bad { fill: var(--high); font-family: var(--sans); font-size: 11.5px; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="eyebrow">Field Notes &middot; No. 02 &middot; Modelling</div>
+<h1>Stop Tuning, Start Reading</h1>
+
+<figure>
+  <svg viewBox="0 0 660 250">
+    <line class="fd-mean" x1="416" y1="42" x2="416" y2="192" stroke-width="1"/>
+
+    <text class="fd-head" x="24" y="26">Five fold scores, tightly clustered</text>
+    <text class="fd-verdict-ok" x="636" y="26" text-anchor="end">std 0.005 &middot; at the noise floor</text>
+
+    <rect class="fd-band-ok" x="391" y="47" width="50" height="30" rx="2"/>
+    <line class="fd-axis" x1="24" y1="62" x2="636" y2="62" stroke-width="1"/>
+    <circle class="fd-dot-ok" cx="400" cy="62" r="4.2"/>
+    <circle class="fd-dot-ok" cx="409" cy="62" r="4.2"/>
+    <circle class="fd-dot-ok" cx="416" cy="62" r="4.2"/>
+    <circle class="fd-dot-ok" cx="424" cy="62" r="4.2"/>
+    <circle class="fd-dot-ok" cx="432" cy="62" r="4.2"/>
+    <text class="fd-note" x="24" y="94">No instability left to detect.</text>
+
+    <line class="fd-axis" x1="24" y1="114" x2="636" y2="114" stroke-width="1"/>
+
+    <text class="fd-head" x="24" y="140">Same mean, widely scattered</text>
+    <text class="fd-verdict-bad" x="636" y="140" text-anchor="end">std 0.05 &middot; 4&times; the noise floor</text>
+
+    <rect class="fd-band-bad" x="252" y="161" width="328" height="30" rx="2"/>
+    <line class="fd-axis" x1="24" y1="176" x2="636" y2="176" stroke-width="1"/>
+    <circle class="fd-dot-bad" cx="264" cy="176" r="4.2"/>
+    <circle class="fd-dot-bad" cx="338" cy="176" r="4.2"/>
+    <circle class="fd-dot-bad" cx="416" cy="176" r="4.2"/>
+    <circle class="fd-dot-bad" cx="494" cy="176" r="4.2"/>
+    <circle class="fd-dot-bad" cx="568" cy="176" r="4.2"/>
+    <text class="fd-note" x="24" y="208">Something beyond sampling noise is here. Find out what before reading the SHAP values.</text>
+
+    <text class="fd-tick" x="24" y="238">0.60</text>
+    <text class="fd-tick" x="416" y="238" text-anchor="middle">mean AUC</text>
+    <text class="fd-tick" x="636" y="238" text-anchor="end">0.90</text>
+  </svg>
+</figure>
+
+</body>
+</html>
