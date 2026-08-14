@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Field note No. 01: getting real data into an XGBoost model without fooling yourself: class imbalance, Weight-of-Evidence encoding for high-cardinality categoricals, and the target leakage a scikit-learn Pipeline exists to prevent.">
+<meta name="author" content="Yingzhi Vilimelis Aceituno">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Leakage Hides in the Encoder">
+<meta property="og:description" content="Field note No. 01: class imbalance, Weight-of-Evidence encoding, and the target leakage a Pipeline exists to prevent.">
+<meta property="og:url" content="https://yingzhiva.github.io/notes/referral-analytics/encoder-first/">
+<meta property="og:image" content="https://yingzhiva.github.io/notes/referral-analytics/encoder-first/leakage-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Two rows of five cross-validation blocks. Above, a single Weight-of-Evidence encoder is fitted across all five, including the block held out for validation. Below, the encoder is refitted inside each fold on the training blocks only.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://yingzhiva.github.io/notes/referral-analytics/encoder-first/leakage-card.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%237b3fa0'/><text x='50' y='73' font-size='58' font-family='Georgia,serif' fill='white' text-anchor='middle'>◈</text></svg>">
+<style>html{-webkit-text-size-adjust:100%}img,canvas,svg{max-width:100%}</style>
+<title>Leakage Hides in the Encoder</title>
+
+<style>
+  :root {
+    --ground: #f1eff4;
+    --surface: #fbfafc;
+    --surface-2: #e9e6ee;
+    --code-bg: #f5f2f9;
+    --ink: #201a2b;
+    --muted: #5f5670;
+    --faint: #8d84a0;
+    --hairline: #dcd7e3;
+    --accent: #7b3fa0;      /* the purple midpoint of the SHAP colormap */
+    --accent-ink: #5f2e7d;
+    --low: #1a6fc4;         /* SHAP blue: low feature value */
+    --high: #c62258;        /* SHAP magenta: high feature value */
+    --low-wash: rgba(26,111,196,.12);
+    --high-wash: rgba(198,34,88,.11);
+
+    --serif: "Charter", "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, ui-serif, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+
+    --fs-eyebrow: .72rem;
+    --fs-body: 1.08rem;
+    --fs-small: .92rem;
+    --fs-code: .855rem;
+    --fs-h4: 1.08rem;
+    --fs-h3: 1.32rem;
+    --fs-h2: clamp(1.55rem, 1.15rem + 1.7vw, 2.15rem);
+    --fs-dek: clamp(1.08rem, .95rem + .8vw, 1.35rem);
+    --fs-title: clamp(2.4rem, 1.5rem + 4.2vw, 4.1rem);
+
+    /* one measure: hero, prose, figures and code share the same two edges */
+    --col: 46rem;
+    --wide: var(--col);
+    --radius: 4px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #12101a;
+      --surface: #1b1826;
+      --surface-2: #211d2e;
+      --code-bg: #171320;
+      --ink: #e3dfea;
+      --muted: #9d94ad;
+      --faint: #6f6683;
+      --hairline: #2f2a3d;
+      --accent: #b382d6;
+      --accent-ink: #cba6e6;
+      --low: #5aa9ea;
+      --high: #ef6f96;
+      --low-wash: rgba(90,169,234,.13);
+      --high-wash: rgba(239,111,150,.13);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #f1eff4; --surface: #fbfafc; --surface-2: #e9e6ee; --code-bg: #f5f2f9;
+    --ink: #201a2b; --muted: #5f5670; --faint: #8d84a0; --hairline: #dcd7e3;
+    --accent: #7b3fa0; --accent-ink: #5f2e7d; --low: #1a6fc4; --high: #c62258;
+    --low-wash: rgba(26,111,196,.12); --high-wash: rgba(198,34,88,.11);
+  }
+  :root[data-theme="dark"] {
+    --ground: #12101a; --surface: #1b1826; --surface-2: #211d2e; --code-bg: #171320;
+    --ink: #e3dfea; --muted: #9d94ad; --faint: #6f6683; --hairline: #2f2a3d;
+    --accent: #b382d6; --accent-ink: #cba6e6; --low: #5aa9ea; --high: #ef6f96;
+    --low-wash: rgba(90,169,234,.13); --high-wash: rgba(239,111,150,.13);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--fs-body);
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .col { max-width: var(--col); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+  .wide { max-width: var(--wide); margin-inline: auto; padding-inline: clamp(1.25rem, 5vw, 2rem); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--fs-eyebrow);
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    border-bottom: 1px solid var(--hairline);
+    padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(1.5rem, 4vw, 2.75rem);
+    background:
+      radial-gradient(120% 80% at 92% -10%, var(--high-wash), transparent 60%),
+      radial-gradient(90% 70% at 0% 0%, var(--low-wash), transparent 55%);
+  }
+  .hero .kicker { display: flex; align-items: center; gap: .8rem; margin-bottom: 1.5rem; }
+  .hero .kicker .rule { height: 1px; flex: 1; background: var(--hairline); }
+  h1 {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: var(--fs-title);
+    line-height: 1.03;
+    letter-spacing: -.028em;
+    margin: 0 0 .7rem;
+    text-wrap: balance;
+  }
+  .dek {
+    font-size: var(--fs-dek);
+    color: var(--muted);
+    line-height: 1.5;
+    margin: 0 0 1.9rem;
+    max-width: 35rem;
+    text-wrap: pretty;
+  }
+  .meta {
+    font-family: var(--mono);
+    font-size: .74rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem 1.1rem;
+  }
+
+  /* ---------- figures ---------- */
+  figure {
+    margin: clamp(1.75rem, 4vw, 2.75rem) 0 0;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  figure svg { display: block; width: 100%; height: auto; }
+  figure figcaption {
+    border-top: 1px solid var(--hairline);
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .02em;
+    line-height: 1.55;
+    color: var(--muted);
+    padding: .7rem 1rem;
+    background: var(--surface-2);
+  }
+  figure figcaption a { color: var(--accent-ink); }
+
+  /* the leakage diagram: styled by class so it follows the theme */
+  .dg-head { font-family: var(--sans); font-size: 13px; font-weight: 700; fill: var(--ink); }
+  .dg-note { font-family: var(--sans); font-size: 11.5px; fill: var(--muted); }
+  .dg-block { fill: var(--surface-2); stroke: var(--hairline); }
+  .dg-val { fill: var(--low-wash); stroke: var(--low); }
+  .dg-val-t { font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; fill: var(--low); }
+  .dg-bad { stroke: var(--high); fill: none; }
+  .dg-bad-t { fill: var(--high); font-family: var(--sans); font-size: 11.5px; font-weight: 600; }
+  .dg-ok { stroke: var(--accent); fill: none; }
+  .dg-ok-t { fill: var(--accent-ink); font-family: var(--sans); font-size: 11.5px; font-weight: 600; }
+  .dg-rule { stroke: var(--hairline); }
+
+  /* the SVG scales with its container, so on a phone the labels shrink with it.
+     Bump them back up; each string still clears the 660-unit viewBox at this size. */
+  @media (max-width: 34rem) {
+    .dg-head { font-size: 16px; }
+    .dg-note, .dg-bad-t, .dg-ok-t { font-size: 14px; }
+    .dg-val-t { font-size: 12px; }
+  }
+
+  /* the WoE screenshot sits on a permanent white plate so it stays legible in dark mode */
+  figure.shot .plate { background: #fff; padding: .7rem; }
+  figure.shot img { display: block; width: 100%; height: auto; }
+
+  /* ---------- prose ---------- */
+  main { padding-block: clamp(2.5rem, 6vw, 4rem); }
+  section { padding-block: clamp(1.5rem, 4vw, 2.5rem); }
+  .snum {
+    font-family: var(--mono);
+    font-size: var(--fs-eyebrow);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    display: block;
+    margin-bottom: .55rem;
+  }
+  h2 {
+    font-family: var(--sans);
+    font-weight: 750;
+    font-size: var(--fs-h2);
+    line-height: 1.1;
+    letter-spacing: -.02em;
+    margin: 0 0 1rem;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: var(--fs-h3);
+    letter-spacing: -.01em;
+    margin: 2.4rem 0 .6rem;
+  }
+  h4 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: var(--fs-h4);
+    letter-spacing: -.005em;
+    margin: 1.9rem 0 .5rem;
+    color: var(--ink);
+  }
+  p { margin: 0 0 1.15rem; }
+  sup { line-height: 0; }
+  .lead { font-size: 1.16rem; color: var(--ink); }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  code {
+    font-family: var(--mono);
+    font-size: .88em;
+    color: var(--accent-ink);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    padding: .08em .35em;
+    border-radius: 3px;
+    overflow-wrap: break-word;
+  }
+
+  .drop::first-letter {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 3.3em;
+    line-height: .82;
+    float: left;
+    padding: .04em .12em 0 0;
+    color: var(--accent);
+  }
+
+  blockquote {
+    margin: 2.2rem 0;
+    padding-left: 1.15rem;
+    border-left: 3px solid var(--accent);
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: clamp(1.2rem, 1.02rem + .9vw, 1.5rem);
+    line-height: 1.32;
+    letter-spacing: -.015em;
+    color: var(--ink);
+    text-wrap: balance;
+  }
+
+  /* ---------- callouts ---------- */
+  .callout {
+    margin: 0 0 1.6rem;
+    padding: 1rem 1.15rem;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    font-size: var(--fs-small);
+    color: var(--muted);
+  }
+  .callout p { margin: 0; }
+  .callout .tag {
+    display: block;
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    margin-bottom: .3rem;
+    font-weight: 600;
+  }
+  .callout.warn { border-left-color: var(--high); }
+  .callout.warn .tag { color: var(--high); }
+  .callout.warn strong { color: var(--ink); }
+
+  /* ---------- code ---------- */
+  .code { position: relative; margin: 1.5rem 0 1.7rem; }
+  .code pre {
+    margin: 0;
+    background: var(--code-bg);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    padding: 1.4rem 1.1rem 1.05rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: var(--fs-code);
+    line-height: 1.62;
+    color: var(--ink);
+    tab-size: 2;
+  }
+  .code pre code {
+    font-family: inherit; font-size: inherit; color: inherit;
+    background: none; padding: 0; border-radius: 0;
+    white-space: pre;
+  }
+  .code .lang {
+    position: absolute; top: 0; right: 0;
+    font-family: var(--mono); font-size: .62rem; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--faint); background: var(--surface-2);
+    border-left: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+    padding: .24rem .55rem; border-radius: 0 var(--radius) 0 var(--radius);
+    pointer-events: none;
+  }
+
+  /* ---------- display maths ----------
+     Deliberately NOT the code plate: no chip, serif face, centred, real fraction
+     bars. These are definitions, not things you can run. */
+  .eq {
+    margin: 1.8rem 0;
+    padding: 1.5rem 1.15rem 1.3rem;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    text-align: center;
+    overflow-x: auto;
+  }
+  .eq-row {
+    /* block-level flex, not inline-flex: two inline rows would share a line.
+       min-width:max-content keeps a long row from being squeezed, so the
+       parent's overflow-x can scroll it instead. */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: max-content;
+    gap: .45rem;
+    font-family: var(--serif);
+    font-size: 1.14rem;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+  .eq-row + .eq-row { margin-top: 1rem; }
+  .eq-var { font-style: italic; }
+  .eq-op { color: var(--muted); }
+  .frac { display: inline-flex; flex-direction: column; text-align: center; }
+  .frac .num { padding: 0 .6rem .2rem; border-bottom: 1.5px solid currentColor; }
+  .frac .den { padding: .2rem .6rem 0; }
+  .eq-note {
+    margin-top: 1.1rem;
+    font-family: var(--mono);
+    font-size: .69rem;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--faint);
+    line-height: 1.5;
+  }
+  @media (max-width: 30rem) { .eq-row { font-size: 1rem; } }
+
+  /* ---------- definition / key-value lists ---------- */
+  .defs { list-style: none; margin: 1.4rem 0 1.6rem; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; }
+  .defs li { background: var(--surface); padding: .85rem 1.1rem; display: grid; grid-template-columns: 11rem 1fr; gap: .2rem .9rem; align-items: baseline; font-size: var(--fs-small); }
+  .defs .k { font-family: var(--mono); font-size: .72rem; letter-spacing: .04em; color: var(--accent-ink); font-weight: 600; }
+  .defs .v { color: var(--muted); line-height: 1.5; }
+  @media (max-width: 34rem) { .defs li { grid-template-columns: 1fr; } .defs .v { grid-column: 1; } }
+
+  /* ---------- tables ---------- */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: var(--radius); background: var(--surface); margin: 1.6rem 0; }
+  table { border-collapse: collapse; width: 100%; font-family: var(--sans); font-size: var(--fs-small); min-width: 26rem; }
+  thead th { text-align: left; font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: .85rem 1rem; border-bottom: 1px solid var(--hairline); background: var(--surface-2); }
+  tbody td { padding: .9rem 1rem; border-bottom: 1px solid var(--hairline); vertical-align: top; line-height: 1.4; overflow-wrap: break-word; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody td:first-child { font-weight: 650; color: var(--ink); font-family: var(--serif); }
+  td.num, th.num { font-family: var(--mono); font-size: .86em; white-space: nowrap; }
+  caption { caption-side: bottom; text-align: left; font-size: .82rem; color: var(--muted); padding: .75rem 1rem 0; font-family: var(--sans); line-height: 1.5; }
+
+  /* narrow screens: stack each row into a labelled block instead of scrolling sideways */
+  @media (max-width: 34rem) {
+    .tbl-wrap { overflow-x: visible; }
+    tbody, tr, td, caption { display: block; }
+    table { min-width: 0; display: flex; flex-direction: column; }
+    tbody { order: 1; }
+    caption { order: 2; }
+    thead { display: none; }
+    tbody tr { border-bottom: 1px solid var(--hairline); padding: .55rem 0; }
+    tbody tr:last-child { border-bottom: 0; }
+    tbody td { border-bottom: 0; padding: .45rem 1.1rem; }
+    tbody td::before { content: attr(data-label); display: block; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin-bottom: .15rem; }
+  }
+
+  /* ---------- carry-forward ---------- */
+  .band { background: var(--surface-2); border-block: 1px solid var(--hairline); padding-block: clamp(2rem, 5vw, 3.25rem); margin-top: clamp(1.5rem, 4vw, 2.5rem); }
+  .takes { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius); overflow: hidden; counter-reset: t; }
+  .takes li { background: var(--surface); padding: 1.3rem 1.4rem 1.4rem; display: grid; grid-template-columns: 2.4rem 1fr; gap: .4rem 1rem; align-items: start; counter-increment: t; }
+  .takes li::before { content: counter(t, decimal-leading-zero); font-family: var(--mono); font-size: .8rem; font-weight: 600; color: var(--accent); padding-top: .28rem; letter-spacing: .05em; }
+  .takes h4 { font-family: var(--sans); font-size: 1.06rem; font-weight: 700; letter-spacing: -.01em; margin: .12rem 0 .3rem; color: var(--ink); }
+  .takes p { font-size: var(--fs-small); color: var(--muted); margin: 0; line-height: 1.5; }
+  .takes .body { grid-column: 2; }
+
+  /* ---------- next / footer ---------- */
+  .nextup { display: block; margin: 2.2rem 0 0; padding: 1.2rem 1.35rem; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--radius); text-decoration: none; color: inherit; transition: background .15s; }
+  .nextup:hover { background: var(--surface-2); }
+  .nextup .lbl { font-family: var(--mono); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; }
+  .nextup .ttl { display: block; font-family: var(--sans); font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; margin-top: .3rem; color: var(--ink); }
+  .nextup .sub { display: block; font-size: var(--fs-small); color: var(--muted); margin-top: .25rem; line-height: 1.5; }
+
+  footer { border-top: 1px solid var(--hairline); padding-block: 2.5rem 3.5rem; color: var(--muted); }
+  footer p { font-size: var(--fs-small); margin: 0 0 .6rem; }
+  footer .sig { font-family: var(--mono); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+  hr.tick { border: 0; height: 1px; background: var(--hairline); margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+</style>
+<script src="../../../assets/site.js"></script>
+</head>
+<body>
+<div style="border-bottom:1px solid var(--hairline);"><div style="max-width:var(--wide,58rem);margin-inline:auto;padding:.7rem clamp(1.25rem,5vw,2rem);font-family:var(--mono);font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;display:flex;justify-content:space-between;gap:1rem;"><a href="../" style="color:var(--muted);text-decoration:none;">&larr; The collection</a><a href="../../../" style="color:var(--muted);text-decoration:none;">yingzhiva.github.io</a></div></div>
+
+<header class="hero">
+  <div class="wide">
+    <div class="kicker">
+      <span class="eyebrow">Field Notes &middot; No. 01 &middot; Modelling</span>
+      <span class="rule"></span>
+    </div>
+    <h1>Leakage Hides in the Encoder</h1>
+    <p class="dek">Getting real data into an XGBoost model: on an imbalanced target, the choices of encoding categorical features, and the importance of using a pipeline.</p>
+    <div class="meta">
+      <span>Field note</span>
+      <span>&middot;</span>
+      <span>~9 min read</span>
+      <span>&middot;</span>
+      <span>Python, XGBoost</span>
+      <span>&middot;</span>
+      <span>Synthetic data</span>
+    </div>
+
+    <figure aria-label="Diagram contrasting two orders of operation. Above: a dataset split into five cross-validation blocks with a single Weight-of-Evidence encoder fitted across all five, including the block held out for validation, so that block's own labels reach its own features. Below: the encoder refitted inside each fold on the four training blocks only, leaving the validation block untouched.">
+      <svg viewBox="0 0 660 278" aria-hidden="true" focusable="false">
+        <!-- ============ top: leaky ============ -->
+        <text class="dg-head" x="24" y="30">Encode first, then cross-validate</text>
+
+        <g>
+          <rect class="dg-block" x="24" y="58" width="121" height="34" rx="2"/>
+          <rect class="dg-block" x="149" y="58" width="121" height="34" rx="2"/>
+          <rect class="dg-val"   x="274" y="58" width="121" height="34" rx="2"/>
+          <rect class="dg-block" x="399" y="58" width="121" height="34" rx="2"/>
+          <rect class="dg-block" x="524" y="58" width="112" height="34" rx="2"/>
+          <text class="dg-val-t" x="334" y="79" text-anchor="middle">validate</text>
+        </g>
+
+        <!-- brace under the whole dataset -->
+        <path class="dg-bad" d="M24 100 v8 H636 v-8" stroke-width="1.6"/>
+        <path class="dg-bad" d="M330 108 v8 M325 113 l5 6 l5 -6" stroke-width="1.6"/>
+        <text class="dg-bad-t" x="330" y="136" text-anchor="middle">WoE encoder fitted once, on all five blocks</text>
+        <text class="dg-note" x="330" y="153" text-anchor="middle">The held-out block&rsquo;s own labels are baked into its own features.</text>
+
+        <line class="dg-rule" x1="24" y1="175" x2="636" y2="175" stroke-width="1"/>
+
+        <!-- ============ bottom: safe ============ -->
+        <text class="dg-head" x="24" y="203">Encode inside the pipeline, per fold</text>
+
+        <g>
+          <rect class="dg-block" x="24" y="215" width="121" height="34" rx="2"/>
+          <rect class="dg-block" x="149" y="215" width="121" height="34" rx="2"/>
+          <rect class="dg-val"   x="274" y="215" width="121" height="34" rx="2"/>
+          <rect class="dg-block" x="399" y="215" width="121" height="34" rx="2"/>
+          <rect class="dg-block" x="524" y="215" width="112" height="34" rx="2"/>
+          <text class="dg-val-t" x="334" y="236" text-anchor="middle">validate</text>
+        </g>
+
+        <!-- two braces, skipping the validation block -->
+        <path class="dg-ok" d="M24 257 v7 H270 v-7" stroke-width="1.6"/>
+        <path class="dg-ok" d="M399 257 v7 H636 v-7" stroke-width="1.6"/>
+        <text class="dg-ok-t" x="147" y="274" text-anchor="middle">refitted on train only</text>
+        <text class="dg-ok-t" x="517" y="274" text-anchor="middle">refitted on train only</text>
+      </svg>
+      <figcaption>Weight-of-Evidence encoding is computed <em>from the target</em>. Fit it before you cross-validate and every score in the notebook is quietly inflated.</figcaption>
+    </figure>
+  </div>
+</header>
+
+<main>
+  <div class="col">
+
+    <section>
+      <div class="callout">
+        <span class="tag">Scope</span>
+        <p>Note that the primary goal of the model is not to make predictions (although it certainly could) but to learn about feature importance, i.e. the interpretation. That choice drives nearly every decision below.</p>
+      </div>
+      <p class="lead drop">There is a lot of ground to cover from earning an online (however advanced) data science certificate to building your first model for a real use case. The use case here was a customer referral programme at a digital wealth manager, and the question was <em>who refers</em>: which client characteristics predict whether someone brings in another client. This note covers the three major learnings that helped me eventually obtain a performant and explainable model: class balancing, encoding differentcategorical features, and adopting leakage-proof pipeline.</p>
+    </section>
+
+    <hr class="tick" />
+
+    <section>
+      <span class="snum">01 &middot; The target</span>
+      <h2>Class Imbalance</h2>
+      <p>The False vs. True counts of the binary target variable is about 83:17 in the data. This is not hopeless but needs to be addressed. In my first run I did not do so, because I thought the underlying sample size is big enough and the minor class is still large in absolute terms. Then the test AUC score dropped significantly from the training score, and there is the tell-tale sign of class imbalance: high accuracy coupled with a very low recall. This means that the model performs well most of the time on the majority cases and has learned practically nothing from the minority class (the ones evaluated True), hence the high false-negative rate reflected in the low recall.</p>
+      <p>Before moving on to more aggressive measures such as downsampling or oversampling, we should try scaling the positive weight by using the <code>scale_pos_weight</code> parameter:</p>
+
+      <div class="code"><span class="lang">python</span><pre><code>from xgboost import XGBClassifier
+# Address the class imbalance by scaling the positive weight
+scale = (y == False).sum() / (y == True).sum()
+XGBClassifier(random_state=42, scale_pos_weight = scale,
+              eval_metric='logloss', objective='binary:logistic')</code></pre></div>
+
+      <p>Split training and test set using the <code>stratify</code> parameter:</p>
+
+      <div class="code"><span class="lang">python</span><pre><code>X_train, X_test, y_train, y_test = train_test_split(X, y,
+    test_size=0.2, random_state=42, stratify=y)</code></pre></div>
+
+      <p>As a cross-validation strategy, use <code>StratifiedKFold</code> to preserve class balance across folds, which matters for imbalanced targets:</p>
+
+      <div class="code"><span class="lang">python</span><pre><code>from sklearn.model_selection import StratifiedKFold
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)</code></pre></div>
+
+      <p>The test AUC score improved significantly and is now closer to the training score after handling the imbalance. The trade-off here is that the model precision dropped significantly in favour of recall, since we now predict more false positives. On the held-out test set that landed at <strong>recall 0.71 against precision 0.36</strong>: the model catches roughly seven referrers in ten, and is wrong about two-thirds of the clients it flags. Loop back to the business context to determine whether the trade-off is acceptable, or even desired. In my use case it was beneficial to trade a higher false positive for a lower false negative. The cost of surfacing a client who turns out not to refer is a wasted nudge, while the cost of missing one is a referral that never happens.</p>
+      <p>One further consequence is easy to miss: by reweighting the minority class during training, <code>scale_pos_weight</code> also breaks the calibration of the predicted probabilities. They come out systematically inflated towards the positive class, so a <code>predict_proba</code> output of 0.6 no longer means &ldquo;a 60% chance this client refers&rdquo;. That's not an issue if you only ever use the <em>ranking</em> (which is all ROC-AUC reads, and all SHAP needs to attribute contributions). But the moment someone downstream wants to read a score as a probability, or set a threshold from an expected-value calculation, it has to be calibrated first.</p>
+    </section>
+
+    <hr class="tick" />
+
+    <section>
+      <span class="snum">02 &middot; The features</span>
+      <h2>Encoding Categorical Features</h2>
+
+      <h3>Boolean Feature</h3>
+      <p>Map True and False to the integer 1 and 0, respectively, for Boolean features. Handling conversions explicitly is always better than implicitly.</p>
+
+      <div class="code"><span class="lang">python</span><pre><code># Convert boolean to int
+bool_list = ['bool_column1', 'bool_column2']
+for column in bool_list:
+    df[column] = df[column].astype(np.int32)</code></pre></div>
+
+      <h3>Ordinal Feature</h3>
+      <p>Obviously <code>OrdinalEncoder</code> is our friend here. One thing to keep in mind is that the sequence needs to be given explicitly, as the encoder knows nothing of your business logic and will simply put items in alphabetic order, which will invariably lead to headaches at the model-explanation stage.</p>
+
+      <div class="code"><span class="lang">python</span><pre><code>from sklearn.preprocessing import OrdinalEncoder
+enc = OrdinalEncoder(categories = [['LOW_RISK', 'MEDIUM_RISK', 'HIGH_RISK']],
+                     dtype=np.int32)
+df['risk_expectation'] = enc.fit_transform(df[['risk_expectation']])</code></pre></div>
+
+      <h3>Categorical Feature without Intrinsic Order</h3>
+      <p>If there are just a handful of labels in the categorical feature, we should first consider one-hot encoding:</p>
+
+      <div class="code"><span class="lang">python</span><pre><code>df = pd.get_dummies(df, columns=['feature_1', 'feature_2'],
+                    drop_first=True, dtype=np.int32)</code></pre></div>
+
+      <p>However, as the number of labels grows, this approach quickly becomes untenable, especially if you want to understand feature contributions to the model later (e.g. SHAP analysis).</p>
+
+      <h4>Introducing Weight of Evidence (WoE) Encoding</h4>
+      <p>WoE comes from the credit scoring world and is specifically designed for binary classification. Instead of encoding the raw proportion, it encodes the log-odds of the target relative to the overall distribution of events and non-events. For each category you compute two shares, and take the log of their ratio:</p>
+
+      <div class="eq">
+        <div class="eq-row">
+          <span class="eq-var">WoE</span>
+          <span class="eq-op">=</span>
+          <span>ln</span>
+          <span class="frac">
+            <span class="num">share of events</span>
+            <span class="den">share of non-events</span>
+          </span>
+        </div>
+        <div class="eq-note">Both shares are of the class total, not of the category</div>
+      </div>
+
+      <p>Specifically:</p>
+
+      <ul class="defs">
+        <li><span class="k">share of events</span><span class="v">events in this category &divide; <strong>all events in the dataset</strong></span></li>
+        <li><span class="k">share of non-events</span><span class="v">non-events in this category &divide; <strong>all non-events in the dataset</strong></span></li>
+      </ul>
+
+      <p>Take employer industry as an example, which is one of the four features I actually encoded this way. Round figures here, to keep the arithmetic visible; the real values from my model come further down. Say the dataset holds 1,700 referrers and 8,300 non-referrers, and one industry contains 270 of the former and 800 of the latter:</p>
+
+      <div class="tbl-wrap" role="region" aria-label="Worked Weight-of-Evidence calculation for one illustrative industry">
+        <table>
+          <caption>Illustrative round figures for a single category, &ldquo;Industry A&rdquo;. Note that each share divides by its own <em>class</em> total, so the two denominators differ.</caption>
+          <thead>
+            <tr><th scope="col">Quantity</th><th scope="col" class="num">Count</th><th scope="col" class="num">Share of its class total</th></tr>
+          </thead>
+          <tbody>
+            <tr><td data-label="Quantity">Referrers in Industry A</td><td class="num" data-label="Count">270</td><td class="num" data-label="Share of its class total">270 / 1,700 = 0.159</td></tr>
+            <tr><td data-label="Quantity">Non-referrers in Industry A</td><td class="num" data-label="Count">800</td><td class="num" data-label="Share of its class total">800 / 8,300 = 0.096</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="eq">
+        <div class="eq-row">
+          <span class="eq-var">WoE</span><span class="eq-op">(</span>Industry A<span class="eq-op">)</span>
+          <span class="eq-op">=</span>
+          <span>ln</span>
+          <span class="frac">
+            <span class="num">0.159</span>
+            <span class="den">0.096</span>
+          </span>
+          <span class="eq-op">=</span>
+          <span>ln 1.65</span>
+          <span class="eq-op">&asymp;</span>
+          <span><strong>+0.50</strong></span>
+        </div>
+      </div>
+
+      <p>Both figures describe Industry A, but they answer different questions: 15.9% of everyone who referred works in it, against 9.6% of everyone who didn&rsquo;t. It is over-represented among referrers, so the WoE comes out positive.</p>
+      <p>A positive WoE means that category is over-represented among positives relative to the overall base rate. A negative WoE means it&rsquo;s under-represented. A WoE near zero means the category carries no discriminatory information.</p>
+      <p>This is useful because the encoding directly reflects the direction and magnitude of the relationship with the target, which can be very readable and interpretable.</p>
+      <p>Readable in a literal sense: because the mapping is just a number per category, you can pull it back out of the fitted encoder afterwards and look at it in domain terms. Here is the one my model learned for employer industry:</p>
+
+      <figure class="shot">
+        <div class="plate">
+          <img src="woe-employer-industry.png" width="470" height="600" alt="Horizontal bar chart titled KYC Employer Industry WoE Encoding, with 26 industry categories ranked by Weight-of-Evidence value on an axis running from about minus 0.3 to plus 0.3. HR sits highest at roughly plus 0.29, followed by airline, manufacturing, hotelAndTourism, lawAndTax and transportation. The middle of the ranking clusters near zero. Below zero, publicService, marketing, consulting, chemPharma, aerospace and farming trend negative, with engineering and realEstate lowest at roughly minus 0.24 and minus 0.30.">
+        </div>
+        <figcaption>The fitted encoder decoded back to categories, from the synthetic run. Positive means over-represented among referrers, negative means under-represented.</figcaption>
+      </figure>
+
+      <p>Two insights can be gleaned from this chart. First, the ordering is immediately interpretable without touching the model: HR, airline and manufacturing sit at the positive end, real estate and engineering at the negative end. Second, the whole spread is only about &plusmn;0.3, which is a useful reality check: no single industry is a dramatic driver on its own, and I should be sceptical of any story that leans hard on one category.</p>
+
+      <h4>Why not XGBoost&rsquo;s native categorical support?</h4>
+      <p>XGBoost 1.6+ handles raw categoricals directly with <code>enable_categorical=True</code>. That would have removed the encoder entirely.</p>
+      <p>I didn&rsquo;t because of the goal stated at the top: interpretation. Native categorical splits partition the set of categories, so the feature survives as one column and global SHAP importance still works, but the <em>direction</em> is lost. Category codes have no order, so on a beeswarm plot the colour axis, which encodes low-to-high feature value, means nothing at all. WoE instead gives a numeric column that increases in step with the log-odds of the target, so the colour axis becomes readable: blue is the categories that refer less, magenta the ones that refer more. That, plus the decoded mapping above, is what makesthe extra step worth it for the benefit of explanability (more on that later in the second post of this series).</p>
+
+      <h3>Combining categories with few observations?</h3>
+      <p>Decision trees don&rsquo;t inherently struggle with rare categories; the issue is that with very small counts, a split is based on nearly no data, so it&rsquo;s statistically unreliable and prone to overfitting on noise. When you collapse rare levels into broader buckets, you&rsquo;re essentially regularizing the model by reducing variance at the cost of some bias. This is usually a good trade.</p>
+      <p>However, the way you collapse matters. Lumping employer industry in &ldquo;tourism&rdquo; and &ldquo;hotel&rdquo; together makes domain sense, but purely mechanical approaches (e.g. &ldquo;combine everything with &lt; 100 samples&rdquo;) may or may not destroy meaningful signal, depending on whether a rare category is genuinely distinctive.</p>
+      <p>A middle ground here is target encoding with smoothing, or weight of evidence encoding, which handles rare categories gracefully by borrowing statistical strength from the overall distribution.</p>
+
+      <div class="callout warn">
+        <span class="tag">Whatever your choice here</span>
+        <p><strong>Do not use the target variable (Y) to inform your collapsing decisions on the test set!</strong> e.g. using a WoE encoding result to collapse non-contributing labels of the entire dataset. This leads us nicely to the next topic: target leakage and the using a pipeline to fight it.</p>
+      </div>
+    </section>
+
+    <hr class="tick" />
+
+    <section>
+      <span class="snum">03 &middot; The wiring</span>
+      <h2>A Pipeline Isn&rsquo;t Convenience, It&rsquo;s Leakage Insurance</h2>
+      <p>A <code>Pipeline</code> chains a sequence of transformation steps followed by a final estimator into a single object. When you call <code>pipeline.fit(X_train, y_train)</code>, it runs each step&rsquo;s <code>fit_transform</code> sequentially, passing the output of each step as the input to the next, and finally calls <code>fit</code> on the last step (the model). When you call <code>pipeline.predict(X_test)</code>, it runs each step&rsquo;s <code>transform</code> on the test data (without refitting) before passing the result to the model.</p>
+      <p>The critical benefit beyond convenience is <strong>leakage prevention</strong>. Any preprocessing step inside a <code>Pipeline</code> is refitted only on training data within each cross-validation fold, never on validation data. This is the correct behaviour and is easy to get wrong when preprocessing manually outside of a pipeline, especially if you are using techniques such as target encoding and WoE.</p>
+
+      <blockquote>Fit the encoder before you cross-validate and the fold has already seen the labels it is about to be tested on.</blockquote>
+
+      <div class="code"><span class="lang">python</span><pre><code># -----------------------------------------------
+# Build full pipeline
+# -----------------------------------------------
+
+pipeline = Pipeline(steps=[
+    ('woe', ce.WOEEncoder(cols=woe_features)),
+    ('model', XGBClassifier(random_state=42, scale_pos_weight = scale,
+                            eval_metric='logloss',
+                            objective='binary:logistic'))
+])
+
+# -----------------------------------------------
+# Define hyperparameter grid
+# -----------------------------------------------
+param_grid = {
+    'woe__regularization': [1.5],
+    'model__n_estimators': [100, 200],
+    'model__max_depth': [3],
+    'model__learning_rate': [0.01, 0.05],
+    'model__subsample': [0.8, 0.5],
+    'model__colsample_bytree': [0.7, 0.5],
+    'model__min_child_weight': [3],
+    'model__tree_method': ['hist']
+}</code></pre></div>
+
+      <p>As the example code above shows, each step is a tuple of <code>(name, object)</code>. The name is arbitrary but must be unique: it&rsquo;s used to reference that step when setting hyperparameters in <code>GridSearchCV</code>, using the double underscore convention: <code>stepname__parameter</code>.</p>
+      <p>One thing to note is that encoder hyperparameters can be tuned alongside model hyperparameters within the same search, which is another advantage of keeping everything inside a single pipeline.</p>
+    </section>
+
+  </div>
+
+  <div class="band">
+    <div class="col" style="padding-top:0;padding-bottom:0;">
+      <span class="snum" style="margin-bottom:.9rem;">Carry-forward &middot; The transferable part</span>
+      <h2 style="margin-bottom:1.6rem;">What I&rsquo;d bring to the next model</h2>
+    </div>
+    <div class="col">
+      <ol class="takes">
+        <li><div class="body"><h4>Reach for the cheap knob before the aggressive one</h4><p><code>scale_pos_weight</code> and stratified splits fixed my imbalance without touching the data. Try reweighting before resampling; you can always escalate.</p></div></li>
+        <li><div class="body"><h4>Know what the fix costs you</h4><p>Weighting bought recall and broke probability calibration. Call it out in your report before someone downstream reads a score as a probability.</p></div></li>
+        <li><div class="body"><h4>Convert explicitly, never implicitly</h4><p>Booleans to ints by hand, ordinal categories in an order you supply. Left alone, an encoder will sort your risk levels alphabetically and you will meet the consequences at the explanation stage.</p></div></li>
+        <li><div class="body"><h4>Pick the encoding that serves the goal</h4><p>One-hot for a handful of levels, WoE when cardinality grows <em>and</em> you need to explain the model. Had I only wanted predictions, XGBoost&rsquo;s native categorical support would have been the right call.</p></div></li>
+        <li><div class="body"><h4>Assume leakage is the default</h4><p>Any transform fitted from the target (WoE, target encoding, even a collapsing decision) leaks unless it lives inside the pipeline and gets refitted per fold.</p></div></li>
+        <li><div class="body"><h4>Tune the encoder and the model together</h4><p>Once both are in one pipeline, the encoder&rsquo;s own hyperparameters join the same search. Two things to optimise, one grid.</p></div></li>
+      </ol>
+    </div>
+  </div>
+
+  <footer>
+    <div class="col">
+      <a class="nextup" href="../stop-tuning/">
+        <span class="lbl">Next &middot; No. 02</span>
+        <span class="ttl">Stop Tuning, Start Reading &rarr;</span>
+        <span class="sub">The machine is built and leakage-safe. Now: is the score good enough, when do you stop tuning, and what did the model actually say?</span>
+      </a>
+      <p style="margin-top:1.6rem;">The full notebook lives in the <a href="https://github.com/YingzhiVA/Referral_Analytics" target="_blank" rel="noopener">Referral Analytics repo</a>: cascade graph, two-proportion z-test, WoE pipeline and SHAP interpretation, all on a synthetic dataset that reproduces the schema and distributions of the original exports.</p>
+      <p class="sig">Field notes &middot; No. 01 &middot; synthetic data &middot; public repo</p>
+    </div>
+  </footer>
+</main>
+
+</body>
+</html>
